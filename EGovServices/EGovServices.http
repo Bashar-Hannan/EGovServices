@@ -1,0 +1,6 @@
+@EGovServices_HostAddress = http://localhost:5272
+
+GET {{EGovServices_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
