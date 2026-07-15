@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Domain/Entities/Attachment.cs
+/Domain/Entities/Attachment.cs

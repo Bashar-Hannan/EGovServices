@@ -5,22 +5,21 @@ using EGovServices.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace EGovServices.Application.Features.ClearanceCertificate;
 
 /// <summary>
-/// Handler for CreateClearanceCertificateCommand.
-///
-/// Uses:
-/// - IAppDbContext         → read/write database
-/// - IPdfService           → generate PDF file
-/// - IHttpContextAccessor  → extract NationalNumber from JWT claims
+/// Handler المحدّث — يولّد VerificationToken ويخزّنه في Attachment.
+/// التغيير الوحيد عن النسخة الأصلية هو:
+/// 1. استقبال IVerificationTokenService
+/// 2. توليد Token وتمريره لـ PdfService
+/// 3. حفظه في Attachment
 /// </summary>
 public sealed partial class CreateClearanceCertificateHandler(
     IAppDbContext context,
     IPdfService pdfService,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    IVerificationTokenService verificationTokenService)   // ← NEW
     : IRequestHandler<CreateClearanceCertificateCommand,
                       Result<CreateClearanceCertificateResponse>>
 {
@@ -28,47 +27,25 @@ public sealed partial class CreateClearanceCertificateHandler(
         CreateClearanceCertificateCommand request,
         CancellationToken cancellationToken)
     {
-        // ============================================================
-        // STEP 1: Load the ServiceRequest
-        // ============================================================
-
         var serviceRequest = await context.ServiceRequests
             .FirstOrDefaultAsync(r => r.Id == request.ServiceRequestId, cancellationToken);
 
         if (serviceRequest is null)
-            return Result<CreateClearanceCertificateResponse>
-                .Failure("الطلب غير موجود");
+            return Result<CreateClearanceCertificateResponse>.Failure("الطلب غير موجود");
 
         if (serviceRequest.Status == "Completed")
-            return Result<CreateClearanceCertificateResponse>
-                .Failure("تم معالجة هذا الطلب مسبقاً");
-
-        // ============================================================
-        // STEP 2: Extract NationalNumber from JWT Claims
-        // (as requested in Option A)
-        // ============================================================
+            return Result<CreateClearanceCertificateResponse>.Failure("تم معالجة هذا الطلب مسبقاً");
 
         var nationalNumber = ExtractNationalNumberFromClaims();
-
         if (string.IsNullOrEmpty(nationalNumber))
-            return Result<CreateClearanceCertificateResponse>
-                .Failure("تعذّر التحقق من هوية المستخدم");
-
-        // ============================================================
-        // STEP 3: Load Citizen data (for the PDF)
-        // ============================================================
+            return Result<CreateClearanceCertificateResponse>.Failure("تعذّر التحقق من هوية المستخدم");
 
         var citizen = await context.Citizens
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.NationalNumber == nationalNumber, cancellationToken);
 
         if (citizen is null)
-            return Result<CreateClearanceCertificateResponse>
-                .Failure("بيانات المواطن غير موجودة");
-
-        // ============================================================
-        // STEP 4: Query CriminalRecords table
-        // ============================================================
+            return Result<CreateClearanceCertificateResponse>.Failure("بيانات المواطن غير موجودة");
 
         var criminalRecords = await context.CriminalRecords
             .AsNoTracking()
@@ -76,17 +53,12 @@ public sealed partial class CreateClearanceCertificateHandler(
             .OrderByDescending(r => r.JudgmentDate)
             .ToListAsync(cancellationToken);
 
-        // ============================================================
-        // STEP 5: Determine check result
-        // ============================================================
-
         var (checkResult, hasActiveCrimes) = BuildCheckResult(criminalRecords);
 
-        // ============================================================
-        // STEP 6: Generate PDF
-        // ============================================================
-
         var fullName = $"{citizen.FirstName} {citizen.FatherName} {citizen.LastName}";
+
+        // ── NEW: توليد Verification Token ───────────────────────────
+        var verificationToken = verificationTokenService.GenerateToken();
 
         var pdfData = new ClearanceCertificatePdfData
         {
@@ -96,24 +68,19 @@ public sealed partial class CreateClearanceCertificateHandler(
             HasActiveCrimes = hasActiveCrimes,
             IssueDate = DateOnly.FromDateTime(DateTime.UtcNow),
             ReferenceNumber = serviceRequest.ReferenceNumber,
-            FormDataJson = serviceRequest.FormData
+            FormDataJson = serviceRequest.FormData,
+            VerificationToken = verificationToken   // ← NEW
         };
 
         string pdfFilePath;
-        try
-        {
-            pdfFilePath = await pdfService.GenerateClearanceCertificateAsync(pdfData);
-        }
+        try { pdfFilePath = await pdfService.GenerateClearanceCertificateAsync(pdfData); }
         catch (Exception ex)
         {
             return Result<CreateClearanceCertificateResponse>
                 .Failure($"فشل إنشاء ملف الشهادة: {ex.Message}");
         }
 
-        // ============================================================
-        // STEP 7: Save Attachment record
-        // ============================================================
-
+        // ── NEW: حفظ Token في Attachment ────────────────────────────
         var attachment = new Attachment
         {
             Id = Guid.NewGuid(),
@@ -122,14 +89,12 @@ public sealed partial class CreateClearanceCertificateHandler(
             FilePath = pdfFilePath,
             ContentType = "application/pdf",
             FileType = "ClearanceCertificate",
-            FileSizeBytes = new FileInfo(pdfFilePath).Length
+            FileSizeBytes = new FileInfo(pdfFilePath).Length,
+            VerificationToken = verificationToken,
+            VerificationTokenExpiresAt = null    // شهادة عدم المحكومية لا تنتهي
         };
 
         await context.Attachments.AddAsync(attachment, cancellationToken);
-
-        // ============================================================
-        // STEP 8: Update ServiceRequest → Completed
-        // ============================================================
 
         serviceRequest.Status = "Completed";
         serviceRequest.CompletedAt = DateTime.UtcNow;
@@ -137,30 +102,20 @@ public sealed partial class CreateClearanceCertificateHandler(
             ? "تم إصدار الشهادة - يوجد سجل جنائي"
             : "تم إصدار الشهادة - لا توجد سوابق";
 
-        // ============================================================
-        // STEP 9: Audit Log
-        // ============================================================
-
         var auditLog = new RequestAuditLog
         {
             Id = Guid.NewGuid(),
             ServiceRequestId = serviceRequest.Id,
+            OldStatus = "Processing",
             NewStatus = "Completed",
             Action = "CertificateGenerated",
+            Notes = "تم إصدار شهادة عدم المحكومية بنجاح",
+            ChangedByUserId = null,
             CreatedAt = DateTime.UtcNow
         };
 
         await context.RequestAuditLogs.AddAsync(auditLog, cancellationToken);
-
-        // ============================================================
-        // STEP 10: Save everything (atomic)
-        // ============================================================
-
         await context.SaveChangesAsync(cancellationToken);
-
-        // ============================================================
-        // STEP 11: Return response
-        // ============================================================
 
         var resultMessage = hasActiveCrimes
             ? "تم إصدار الشهادة — يوجد سجل جنائي مرتبط بهويتك"
@@ -176,6 +131,4 @@ public sealed partial class CreateClearanceCertificateHandler(
                 ResultMessage = resultMessage
             });
     }
-
-    // Helper methods in Part 2 (partial class)
 }

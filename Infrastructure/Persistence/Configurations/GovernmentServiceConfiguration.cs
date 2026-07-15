@@ -19,7 +19,7 @@ public class GovernmentServiceConfiguration : IEntityTypeConfiguration<Governmen
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(x => x.GovernmentEntity)
-            .WithMany(x => x.Services)
+            .WithMany(x => x.GovernmentServices)
             .HasForeignKey(x => x.GovernmentEntityId)
             .OnDelete(DeleteBehavior.Restrict);
 

@@ -60,7 +60,7 @@ public class GetRequestStatusHandler
 
     private static string GetArabicStatus(string status) => status switch
     {
-        "PendingPayment" => "في انتظار الدفع",
+        "PendingPaymentPayment" => "في انتظار الدفع",
         "Submitted"      => "تم التقديم",
         "UnderReview"    => "قيد المراجعة",
         "Approved"       => "موافق عليه",

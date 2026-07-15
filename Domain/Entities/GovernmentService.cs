@@ -18,13 +18,13 @@ public class GovernmentService
     // 🛠️ تصحيح الخطأ الإملائي من ServiceFeeFee إلى ServiceFee ليتوافق مع بقية المشروع
     public required decimal ServiceFee { get; set; }
 
-    public required bool IsActive { get; set; } = true;
+    public  bool IsActive { get; set; } = true;
 
     // ✨ ميزة جديدة: تاريخ الإنشاء
-    public required DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public  DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // ✨ ميزة جديدة: نوع الخدمة (رقمية أو حضورية)
-    public required ServiceType ServiceType { get; set; }
+    public  ServiceType ServiceType { get; set; }
 
     // ── العلاقات (Navigation Properties) ─────────────────────────────────
 

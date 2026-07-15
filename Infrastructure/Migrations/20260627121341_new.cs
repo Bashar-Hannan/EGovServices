@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace EGovServices.Infrastructure.Migrations
 {
     /// <inheritdoc />
@@ -18,14 +16,19 @@ namespace EGovServices.Infrastructure.Migrations
                 columns: table => new
                 {
                     NationalNumber = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
-                    FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    FatherName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    MotherName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Gender = table.Column<string>(type: "varchar(10)", unicode: false, maxLength: 10, nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    FirstName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    FatherName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    LastName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     BirthDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    Email = table.Column<string>(type: "varchar(200)", unicode: false, maxLength: 200, nullable: true)
+                    PlaceOfBirth = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    MaritalStatus = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Address = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    MotherName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    Religion = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
+                    Gender = table.Column<string>(type: "nvarchar(10)", maxLength: 10, nullable: true),
+                    RecordPlace = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    RecordNumber = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -55,7 +58,8 @@ namespace EGovServices.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    LogoUrl = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -86,9 +90,9 @@ namespace EGovServices.Infrastructure.Migrations
                 name: "CitizenPhones",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    Number = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
-                    CitizenNationalNumber = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false)
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Number = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CitizenNationalNumber = table.Column<string>(type: "varchar(20)", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -109,7 +113,8 @@ namespace EGovServices.Infrastructure.Migrations
                     CitizenNationalNumber = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
                     CrimeDescription = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     JudgmentDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    CitizenNationalNumber1 = table.Column<string>(type: "varchar(20)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -120,6 +125,11 @@ namespace EGovServices.Infrastructure.Migrations
                         principalTable: "Citizens",
                         principalColumn: "NationalNumber",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CriminalRecords_Citizens_CitizenNationalNumber1",
+                        column: x => x.CitizenNationalNumber1,
+                        principalTable: "Citizens",
+                        principalColumn: "NationalNumber");
                 });
 
             migrationBuilder.CreateTable(
@@ -182,7 +192,9 @@ namespace EGovServices.Infrastructure.Migrations
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     Requirements = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     ServiceFee = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true)
+                    IsActive = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ServiceType = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -241,6 +253,38 @@ namespace EGovServices.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AppointmentSlots",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    GovernmentServiceId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedByAdminId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SlotDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    StartTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    EndTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    TotalSeats = table.Column<int>(type: "int", nullable: false),
+                    BookedSeats = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AppointmentSlots", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_AppointmentSlots_GovernmentServices_GovernmentServiceId",
+                        column: x => x.GovernmentServiceId,
+                        principalTable: "GovernmentServices",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_AppointmentSlots_Users_CreatedByAdminId",
+                        column: x => x.CreatedByAdminId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ServiceFormFields",
                 columns: table => new
                 {
@@ -270,45 +314,6 @@ namespace EGovServices.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ServiceRequests",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    GovernmentServiceId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ReferenceNumber = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
-                    Status = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
-                    SubmissionDate = table.Column<DateTime>(type: "datetime2(7)", nullable: false),
-                    BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    FormData = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ProcessingNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    CompletedAt = table.Column<DateTime>(type: "datetime2(7)", nullable: true),
-                    RejectionReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ServiceRequests", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ServiceRequests_Branches_BranchId",
-                        column: x => x.BranchId,
-                        principalTable: "Branches",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ServiceRequests_GovernmentServices_GovernmentServiceId",
-                        column: x => x.GovernmentServiceId,
-                        principalTable: "GovernmentServices",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ServiceRequests_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ServiceSlots",
                 columns: table => new
                 {
@@ -328,6 +333,53 @@ namespace EGovServices.Infrastructure.Migrations
                         principalTable: "GovernmentServices",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ServiceRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    GovernmentServiceId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ReferenceNumber = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
+                    Status = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
+                    FormData = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SubmissionDate = table.Column<DateTime>(type: "datetime2(7)", nullable: false),
+                    ProcessingNotes = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    RejectionReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2(7)", nullable: true),
+                    AppointmentSlotId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    BranchId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false),
+                    DeletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ServiceRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ServiceRequests_AppointmentSlots_AppointmentSlotId",
+                        column: x => x.AppointmentSlotId,
+                        principalTable: "AppointmentSlots",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_ServiceRequests_Branches_BranchId",
+                        column: x => x.BranchId,
+                        principalTable: "Branches",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ServiceRequests_GovernmentServices_GovernmentServiceId",
+                        column: x => x.GovernmentServiceId,
+                        principalTable: "GovernmentServices",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ServiceRequests_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -353,16 +405,44 @@ namespace EGovServices.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Appointments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
+                    ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ServiceSlotId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Status = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Appointments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Appointments_ServiceRequests_ServiceRequestId",
+                        column: x => x.ServiceRequestId,
+                        principalTable: "ServiceRequests",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Appointments_ServiceSlots_ServiceSlotId",
+                        column: x => x.ServiceSlotId,
+                        principalTable: "ServiceSlots",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Attachments",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     FileName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    FilePath = table.Column<string>(type: "varchar(1000)", unicode: false, maxLength: 1000, nullable: false),
-                    ContentType = table.Column<string>(type: "varchar(100)", unicode: false, maxLength: 100, nullable: false),
-                    FileType = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
-                    FileSizeBytes = table.Column<long>(type: "bigint", nullable: false)
+                    FilePath = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    ContentType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    FileType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    FileSizeBytes = table.Column<long>(type: "bigint", nullable: false),
+                    VerificationToken = table.Column<string>(type: "varchar(64)", unicode: false, maxLength: 64, nullable: true),
+                    VerificationTokenExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -381,9 +461,12 @@ namespace EGovServices.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
                     ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    NewStatus = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false),
-                    Action = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2(7)", nullable: false)
+                    OldStatus = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    NewStatus = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Action = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ChangedByUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -394,6 +477,11 @@ namespace EGovServices.Infrastructure.Migrations
                         principalTable: "ServiceRequests",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RequestAuditLogs_Users_ChangedByUserId",
+                        column: x => x.ChangedByUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -426,80 +514,6 @@ namespace EGovServices.Infrastructure.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Appointments",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false, defaultValueSql: "NEWSEQUENTIALID()"),
-                    ServiceRequestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ServiceSlotId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Status = table.Column<string>(type: "varchar(50)", unicode: false, maxLength: 50, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Appointments", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Appointments_ServiceRequests_ServiceRequestId",
-                        column: x => x.ServiceRequestId,
-                        principalTable: "ServiceRequests",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Appointments_ServiceSlots_ServiceSlotId",
-                        column: x => x.ServiceSlotId,
-                        principalTable: "ServiceSlots",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.InsertData(
-                table: "Citizens",
-                columns: new[] { "NationalNumber", "Address", "BirthDate", "Email", "FatherName", "FirstName", "Gender", "LastName", "MotherName" },
-                values: new object[,]
-                {
-                    { "01100000003", "اللاذقية - المشروع الأول", new DateOnly(2000, 1, 15), "yassin@example.com", "عمر", "ياسين", "ذكر", "الكردي", "ليلى" },
-                    { "01200000002", "دمشق - المزة", new DateOnly(1998, 11, 22), "sara@example.com", "محمود", "سارة", "أنثى", "الأحمد", "مريم" },
-                    { "02100000001", "حلب - حي الفرقان", new DateOnly(1995, 5, 10), "ahmed@example.com", "محمد", "أحمد", "ذكر", "المنصور", "فاطمة" },
-                    { "02250150972", "حلب - الشيخ مقصود", new DateOnly(2002, 12, 29), "basharhannan400@gmail.com", "عماد", "بشار", "ذكر", "حنان", "فريدة" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "GovernmentEntities",
-                columns: new[] { "Id", "Description", "IsActive", "Name" },
-                values: new object[] { new Guid("11111111-1111-1111-1111-111111111111"), "Ministry of Interior", true, "وزارة الداخلية" });
-
-            migrationBuilder.InsertData(
-                table: "GovernmentServices",
-                columns: new[] { "Id", "Description", "GovernmentEntityId", "IsActive", "Name", "Requirements", "ServiceFee" },
-                values: new object[] { new Guid("22222222-2222-2222-2222-222222222222"), "خدمة تجديد جواز السفر منتهي الصلاحية", new Guid("11111111-1111-1111-1111-111111111111"), true, "تجديد جواز السفر", "صورة شخصية + جواز السفر القديم + إثبات السكن", 150.00m });
-
-            migrationBuilder.InsertData(
-                table: "ServiceFormFields",
-                columns: new[] { "Id", "DefaultValue", "DisplayOrder", "FieldName", "FieldType", "GovernmentServiceId", "HelpText", "IsActive", "IsRequired", "Label", "Metadata", "Placeholder", "ValidationRules" },
-                values: new object[,]
-                {
-                    { new Guid("33333333-0001-0001-0001-000000000001"), null, 1, "fullName", "text", new Guid("22222222-2222-2222-2222-222222222222"), "يجب أن يطابق الاسم المسجل في الهوية الوطنية", true, true, "الاسم الكامل", null, "أدخل اسمك الرباعي كما في الهوية", "{\"minLength\":3,\"maxLength\":100}" },
-                    { new Guid("33333333-0001-0001-0001-000000000002"), null, 2, "nationalNumber", "text", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "رقم الهوية الوطنية", null, "1234567890", "{\"length\":10,\"pattern\":\"^[0-9]{10}$\"}" },
-                    { new Guid("33333333-0001-0001-0001-000000000003"), null, 3, "currentPassportNumber", "text", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "رقم جواز السفر الحالي", null, "ABC123456", "{\"pattern\":\"^[A-Z]{3}[0-9]{6}$\",\"customMessage\":\"يجب أن يكون رقم الجواز بصيغة ABC123456\"}" },
-                    { new Guid("33333333-0001-0001-0001-000000000004"), null, 4, "phoneNumber", "tel", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "رقم الجوال", null, "0501234567", "{\"pattern\":\"^05[0-9]{8}$\"}" },
-                    { new Guid("33333333-0001-0001-0001-000000000005"), null, 5, "email", "email", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "البريد الإلكتروني", null, "example@email.com", "{\"pattern\":\"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$\"}" },
-                    { new Guid("33333333-0001-0001-0001-000000000006"), null, 6, "personalPhoto", "file", new Guid("22222222-2222-2222-2222-222222222222"), "صورة بخلفية بيضاء، مقاس 4×6 سم", true, true, "صورة شخصية حديثة", "{\"accept\":\".jpg,.jpeg,.png\",\"maxSizeMB\":5}", null, "{\"maxSize\":5242880,\"allowedTypes\":[\"image/jpeg\",\"image/png\"]}" },
-                    { new Guid("33333333-0001-0001-0001-000000000007"), null, 7, "currentAddress", "textarea", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "العنوان الحالي", null, "أدخل عنوانك بالتفصيل", "{\"minLength\":10,\"maxLength\":200}" },
-                    { new Guid("33333333-0001-0001-0001-000000000008"), null, 8, "preferredPickupDate", "date", new Guid("22222222-2222-2222-2222-222222222222"), "سيتم إشعارك بالموعد النهائي خلال 48 ساعة", true, true, "تاريخ الاستلام المفضل", null, null, "{\"minDate\":\"today+7\",\"maxDate\":\"today+30\"}" },
-                    { new Guid("33333333-0001-0001-0001-000000000009"), null, 9, "maritalStatus", "select", new Guid("22222222-2222-2222-2222-222222222222"), null, true, true, "الحالة الاجتماعية", null, null, null }
-                });
-
-            migrationBuilder.InsertData(
-                table: "ServiceFieldOptions",
-                columns: new[] { "Id", "DisplayOrder", "IsActive", "OptionLabel", "OptionValue", "ServiceFormFieldId" },
-                values: new object[,]
-                {
-                    { new Guid("44444444-0001-0001-0001-000000000001"), 1, true, "أعزب/عزباء", "single", new Guid("33333333-0001-0001-0001-000000000009") },
-                    { new Guid("44444444-0001-0001-0001-000000000002"), 2, true, "متزوج/متزوجة", "married", new Guid("33333333-0001-0001-0001-000000000009") },
-                    { new Guid("44444444-0001-0001-0001-000000000003"), 3, true, "مطلق/مطلقة", "divorced", new Guid("33333333-0001-0001-0001-000000000009") },
-                    { new Guid("44444444-0001-0001-0001-000000000004"), 4, true, "أرمل/أرملة", "widowed", new Guid("33333333-0001-0001-0001-000000000009") }
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Appointments_ServiceRequestId",
                 table: "Appointments",
@@ -512,9 +526,26 @@ namespace EGovServices.Infrastructure.Migrations
                 column: "ServiceSlotId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_AppointmentSlots_CreatedByAdminId",
+                table: "AppointmentSlots",
+                column: "CreatedByAdminId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AppointmentSlots_GovernmentServiceId",
+                table: "AppointmentSlots",
+                column: "GovernmentServiceId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Attachments_ServiceRequestId",
                 table: "Attachments",
                 column: "ServiceRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Attachments_VerificationToken",
+                table: "Attachments",
+                column: "VerificationToken",
+                unique: true,
+                filter: "[VerificationToken] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Branches_EntityId_Active",
@@ -523,9 +554,14 @@ namespace EGovServices.Infrastructure.Migrations
                 filter: "[IsActive] = 1");
 
             migrationBuilder.CreateIndex(
-                name: "IX_CitizenPhones_NationalNumber",
+                name: "IX_CitizenPhones_CitizenNationalNumber",
                 table: "CitizenPhones",
                 column: "CitizenNationalNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CriminalRecords_CitizenNationalNumber1",
+                table: "CriminalRecords",
+                column: "CitizenNationalNumber1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CriminalRecords_NationalNumber",
@@ -567,10 +603,19 @@ namespace EGovServices.Infrastructure.Migrations
                 columns: new[] { "NationalNumber", "IsUsed", "ExpiresAt" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_RequestAuditLogs_RequestId_CreatedAt",
+                name: "IX_RequestAuditLogs_ChangedByUserId",
                 table: "RequestAuditLogs",
-                columns: new[] { "ServiceRequestId", "CreatedAt" },
-                descending: new[] { false, true });
+                column: "ChangedByUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RequestAuditLogs_ServiceRequestId",
+                table: "RequestAuditLogs",
+                column: "ServiceRequestId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RequestAuditLogs_ServiceRequestId_CreatedAt",
+                table: "RequestAuditLogs",
+                columns: new[] { "ServiceRequestId", "CreatedAt" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceFieldOptions_FieldId_Active_Order",
@@ -595,6 +640,11 @@ namespace EGovServices.Infrastructure.Migrations
                 table: "ServiceFormFields",
                 columns: new[] { "GovernmentServiceId", "FieldName" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ServiceRequests_AppointmentSlotId",
+                table: "ServiceRequests",
+                column: "AppointmentSlotId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ServiceRequests_BranchId",
@@ -711,6 +761,9 @@ namespace EGovServices.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Wallets");
+
+            migrationBuilder.DropTable(
+                name: "AppointmentSlots");
 
             migrationBuilder.DropTable(
                 name: "Branches");

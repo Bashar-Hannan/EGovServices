@@ -57,7 +57,7 @@ public class ServiceRequest
 public static class RequestStatus
 {
     // ── مشتركة ──────────────────────────────────────────
-    public const string Pending = "Pending";
+    public const string PendingPayment = "PendingPayment";
     public const string Completed = "Completed";
     public const string Rejected = "Rejected";
 

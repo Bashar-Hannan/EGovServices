@@ -5,17 +5,20 @@ using EGovServices.Application.Features.Jobs;
 using EGovServices.Infrastructure.Persistence;
 using EGovServices.Infrastructure.Service;
 using EGovServices.Infrastructure.Service.Email;
+using EGovServices.Infrastructure.Service;
 using FluentValidation;
-using System.Net.Http.Headers;
-using System.Text;
-using Hangfire.Dashboard;
 // أضفنا الـ usings الخاصة بـ Hangfire
 using Hangfire;
 using Hangfire.Dashboard;
+using Hangfire.Dashboard;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
+using System.Text;
+using System.Threading.RateLimiting;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -53,6 +56,7 @@ builder.Services.AddMediatR(cfg =>
 
     // Register FluentValidation pipeline behavior
     cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+
 });
 
 // ── 3. FluentValidation — scans Application assembly ─────────────
@@ -66,10 +70,35 @@ builder.Services.AddScoped<IEmailService, MailKitEmailService>();
 // ── 5. Other Services ─────────────────────────────────────────────
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
+builder.Services.AddScoped<IVerificationTokenService, VerificationTokenService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddHttpContextAccessor();
 
 // ── 6. Controllers + Swagger ──────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.AddRateLimiter(options =>
+{
+    // سياسة خاصة بـ Verification Endpoint
+    // تسمح بـ 10 طلبات كل دقيقة لكل IP
+    options.AddFixedWindowLimiter("VerificationPolicy", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.QueueLimit = 0;     // لا انتظار — رفض مباشر
+        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+
+    // رد موحّد عند تجاوز الحد
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "application/json";
+
+        await context.HttpContext.Response.WriteAsync(
+            """{"message": "تجاوزت الحد المسموح من الطلبات. حاول مجدداً بعد دقيقة."}""",
+            cancellationToken);
+    };
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -124,6 +153,7 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAll",
 
 // ─────────────────────────────────────────────────────────────────
 var app = builder.Build();
+app.UseStaticFiles();
 // ─────────────────────────────────────────────────────────────────
 
 // ── تعديل معالجة الأخطاء لإرجاع رسائل مبسطة ──────────────────────
@@ -181,6 +211,8 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 
+app.UseStaticFiles();
+
 // انتبه: يجب وضع لوحة تحكم Hangfire بعد UseAuthentication و UseAuthorization 
 // لكي يتعرف النظام على الـ Roles (مثل Admin) قبل دخول الفلتر
 app.UseAuthentication();
@@ -195,7 +227,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 
 // ✅ مطلوب في الإصدارات الحديثة
 app.MapHangfireDashboard();
-
+app.UseRateLimiter();
 app.MapControllers();
 
 // ✅ Migrations

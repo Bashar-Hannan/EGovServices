@@ -84,7 +84,7 @@ public class StatusTrackingBehavior<TRequest, TResponse>
 
     private static string GetNoteForStatus(string status) => status switch
     {
-        "PendingPayment" => "في انتظار إتمام عملية الدفع",
+        "PendingPaymentPayment" => "في انتظار إتمام عملية الدفع",
         "Submitted"      => "تم استلام طلبك بنجاح وهو في طابور المعالجة",
         "UnderReview"    => "طلبك قيد المراجعة من قبل الموظف المختص",
         "Approved"       => "تمت الموافقة على طلبك",
@@ -96,7 +96,7 @@ public class StatusTrackingBehavior<TRequest, TResponse>
 
     private static string GetArabicStatus(string status) => status switch
     {
-        "PendingPayment" => "في انتظار الدفع",
+        "PendingPaymentPayment" => "في انتظار الدفع",
         "Submitted"      => "تم التقديم",
         "UnderReview"    => "قيد المراجعة",
         "Approved"       => "موافق عليه",

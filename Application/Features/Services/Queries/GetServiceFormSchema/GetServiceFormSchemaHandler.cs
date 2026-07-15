@@ -1,6 +1,7 @@
 using EGovServices.Application.Common;
 using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.DTOs.FormSchema;
+using EGovServices.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -26,6 +27,21 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
         if (!service.IsActive)
             return Result<FormSchemaResponse>.Failure("هذه الخدمة غير متاحة حالياً");
 
+        // ← أضف هذا الكود هنا
+        List<BranchOptionDto>? branches = null;
+        if (service.ServiceType == ServiceType.Appointment)
+        {
+            branches = await context.Branches
+                .AsNoTracking()
+                .Where(b => b.GovernmentEntityId == service.GovernmentEntityId && b.IsActive)
+                .Select(b => new BranchOptionDto
+                {
+                    Id = b.Id,
+                    Name = b.Name,
+                    Address = b.Address
+                })
+                .ToListAsync(cancellationToken);
+        }
         var fields = await context.ServiceFormFields
             .AsNoTracking()
             .Include(f => f.Options.Where(o => o.IsActive))
@@ -49,9 +65,15 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
 
         return Result<FormSchemaResponse>.Success(new FormSchemaResponse
         {
-            ServiceId = service.Id, ServiceName = service.Name,
-            Description = service.Description, Requirements = service.Requirements,
-            ServiceFee = service.ServiceFee, Fields = fieldDtos
+            ServiceId = service.Id,
+            ServiceName = service.Name,
+            Description = service.Description,
+            Requirements = service.Requirements,
+            ServiceFee = service.ServiceFee,
+            ServiceType = service.ServiceType,
+            ServiceTypeLabel = (service.ServiceType == ServiceType.Digital)? "إلكتروني بالكامل": "يتطلب حضوراً",
+            Fields = fieldDtos,
+            Branches = branches
         });
     }
 

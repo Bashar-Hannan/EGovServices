@@ -32,21 +32,37 @@ public class AttachmentConfiguration : IEntityTypeConfiguration<Attachment>
     public void Configure(EntityTypeBuilder<Attachment> builder)
     {
         builder.ToTable("Attachments");
+
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
-        builder.Property(x => x.ServiceRequestId).IsRequired();
-        builder.Property(x => x.FileName).IsRequired().HasMaxLength(255).IsUnicode(true);
-        builder.Property(x => x.FilePath).IsRequired().HasMaxLength(1000).IsUnicode(false);
-        builder.Property(x => x.ContentType).IsRequired().HasMaxLength(100).IsUnicode(false);
-        builder.Property(x => x.FileType).IsRequired().HasMaxLength(50).IsUnicode(false);
+
+        builder.Property(x => x.FileName).IsRequired().HasMaxLength(255);
+        builder.Property(x => x.FilePath).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+        builder.Property(x => x.FileType).IsRequired().HasMaxLength(50);
         builder.Property(x => x.FileSizeBytes).IsRequired();
 
+        // ?? NEW ??????????????????????????????????????????????????????
+        builder.Property(x => x.VerificationToken)
+            .HasMaxLength(64)
+            .IsUnicode(false)
+            .IsRequired(false);
+
+        builder.Property(x => x.VerificationTokenExpiresAt)
+            .IsRequired(false)
+            .HasColumnType("datetime2");
+
+        // Unique index — ÇáÈÍË ÈÇáÜ Token íÌÈ Ãä íßæä ÓÑíÚÇð æÝÑíÏÇð
+        builder.HasIndex(x => x.VerificationToken)
+            .IsUnique()
+            .HasFilter("[VerificationToken] IS NOT NULL")
+            .HasDatabaseName("IX_Attachments_VerificationToken");
+
+        // ?? FK ? ServiceRequest ???????????????????????????????????????
         builder.HasOne(x => x.ServiceRequest)
             .WithMany(x => x.Attachments)
             .HasForeignKey(x => x.ServiceRequestId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(x => x.ServiceRequestId).HasDatabaseName("IX_Attachments_ServiceRequestId");
     }
 }
 

@@ -2,6 +2,7 @@ using EGovServices.Application.Common;
 using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.DTOs.ServiceSubmission;
 using EGovServices.Domain.Entities;
+using EGovServices.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -13,7 +14,6 @@ public sealed record SubmitServiceCommand : IRequest<Result<SubmitServiceRespons
     public required Guid ServiceId { get; init; }
     public required Guid UserId { get; init; }
     public required Dictionary<string, object> FormData { get; init; }
-    public Guid? BranchId { get; init; }
 }
 
 public sealed partial class SubmitServiceHandler(IAppDbContext context)
@@ -31,6 +31,21 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
         if (service is null) return Result<SubmitServiceResponse>.Failure("الخدمة غير موجودة");
         if (!service.IsActive) return Result<SubmitServiceResponse>.Failure("الخدمة غير متاحة");
 
+        // استخراج BranchId من FormData
+        Guid? branchId = null;
+        if (request.FormData.TryGetValue("branchId", out var branchIdRaw)
+            && Guid.TryParse(branchIdRaw?.ToString(), out var parsedBranchId))
+        {
+            branchId = parsedBranchId;
+            request.FormData.Remove("branchId");
+        }
+
+        if (service.ServiceType == ServiceType.Appointment && branchId is null)
+            return Result<SubmitServiceResponse>.Failure("يجب اختيار الفرع للخدمات التي تتطلب حضوراً");
+
+        if (service.ServiceType == ServiceType.Digital && branchId is not null)
+            return Result<SubmitServiceResponse>.Failure("الخدمة الإلكترونية لا تحتاج فرعاً");
+
         var fields = await context.ServiceFormFields.AsNoTracking()
             .Where(f => f.GovernmentServiceId == request.ServiceId && f.IsActive)
             .ToListAsync(cancellationToken);
@@ -44,26 +59,34 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
 
         var serviceRequest = new ServiceRequest
         {
-            Id = Guid.NewGuid(), UserId = request.UserId,
+            Id = Guid.NewGuid(),
+            UserId = request.UserId,
             GovernmentServiceId = request.ServiceId,
-            ReferenceNumber = referenceNumber, Status = "Pending",
-            SubmissionDate = DateTime.UtcNow, BranchId = request.BranchId,
+            ReferenceNumber = referenceNumber,
+            Status = "PendingPayment",
+            SubmissionDate = DateTime.UtcNow,
+            BranchId = branchId,
             FormData = JsonSerializer.Serialize(request.FormData, JsonOptions)
         };
 
         await context.ServiceRequests.AddAsync(serviceRequest, cancellationToken);
         await context.RequestAuditLogs.AddAsync(new RequestAuditLog
         {
-            Id = Guid.NewGuid(), ServiceRequestId = serviceRequest.Id,
-            NewStatus = "Pending", Action = "Submitted", CreatedAt = DateTime.UtcNow
+            Id = Guid.NewGuid(),
+            ServiceRequestId = serviceRequest.Id,
+            NewStatus = "PendingPayment",
+            Action = "Submitted",
+            CreatedAt = DateTime.UtcNow
         }, cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
 
         return Result<SubmitServiceResponse>.Success(new SubmitServiceResponse
         {
-            RequestId = serviceRequest.Id, ReferenceNumber = referenceNumber,
-            Status = "Pending", SubmissionDate = serviceRequest.SubmissionDate,
+            RequestId = serviceRequest.Id,
+            ReferenceNumber = referenceNumber,
+            Status = "PendingPayment",
+            SubmissionDate = serviceRequest.SubmissionDate,
             Message = $"تم استلام طلبك بنجاح. رقم المرجع: {referenceNumber}"
         });
     }

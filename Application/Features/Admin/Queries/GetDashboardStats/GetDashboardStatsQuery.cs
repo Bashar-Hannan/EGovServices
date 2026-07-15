@@ -12,7 +12,7 @@ public sealed record GetDashboardStatsQuery : IRequest<Result<DashboardStatsDto>
 public sealed record DashboardStatsDto
 {
     public required int TotalRequests { get; init; }
-    public required int PendingRequests { get; init; }
+    public required int PendingPaymentRequests { get; init; }
     public required int UnderReviewRequests { get; init; }
     public required int ApprovedRequests { get; init; }
     public required int RejectedRequests { get; init; }
@@ -65,7 +65,7 @@ public sealed class GetDashboardStatsHandler(IAppDbContext context)
         return Result<DashboardStatsDto>.Success(new DashboardStatsDto
         {
             TotalRequests       = requestStats.Sum(s => s.Count),
-            PendingRequests     = requestStats.FirstOrDefault(s => s.Status == "Pending")?.Count ?? 0,
+            PendingPaymentRequests     = requestStats.FirstOrDefault(s => s.Status == "PendingPayment")?.Count ?? 0,
             UnderReviewRequests = requestStats.FirstOrDefault(s => s.Status == "UnderReview")?.Count ?? 0,
             ApprovedRequests    = requestStats.FirstOrDefault(s => s.Status == "Approved")?.Count ?? 0,
             RejectedRequests    = requestStats.FirstOrDefault(s => s.Status == "Rejected")?.Count ?? 0,

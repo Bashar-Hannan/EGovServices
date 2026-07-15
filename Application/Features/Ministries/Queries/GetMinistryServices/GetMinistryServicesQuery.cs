@@ -13,51 +13,83 @@ public sealed record GetMinistryServicesQuery : IRequest<Result<List<MinistrySer
 }
 
 // ─── DTO ──────────────────────────────────────────────────────────────────────
+//public sealed record MinistryServiceDto
+//{
+//    public required Guid        Id          { get; init; }
+//    public required string      Name        { get; init; }
+//    public required string      Description { get; init; }
+//    public required string      Requirements { get; init; }
+//    public required decimal     ServiceFee  { get; init; }
+//    public required ServiceType ServiceType { get; init; }  // Digital | Appointment
+
+//    /// <summary>
+//    /// نص وصفي للنوع — يُعرض مباشرةً في الواجهة
+//    /// "إلكتروني بالكامل" أو "يتطلب حضوراً"
+//    /// </summary>
+//    public string ServiceTypeLabel => ServiceType == ServiceType.Digital
+//        ? "إلكتروني بالكامل"
+//        : "يتطلب حضوراً";
+//}
 public sealed record MinistryServiceDto
 {
-    public required Guid        Id          { get; init; }
-    public required string      Name        { get; init; }
-    public required string      Description { get; init; }
-    public required string      Requirements { get; init; }
-    public required decimal     ServiceFee  { get; init; }
-    public required ServiceType ServiceType { get; init; }  // Digital | Appointment
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string Description { get; init; }
+    public required string ServiceType { get; init; }
+    public required decimal ServiceFee { get; init; }
+    public string? Requirements { get; init; }
 
-    /// <summary>
-    /// نص وصفي للنوع — يُعرض مباشرةً في الواجهة
-    /// "إلكتروني بالكامل" أو "يتطلب حضوراً"
-    /// </summary>
-    public string ServiceTypeLabel => ServiceType == ServiceType.Digital
-        ? "إلكتروني بالكامل"
-        : "يتطلب حضوراً";
+    // فقط تُملأ عندما ServiceType = "Appointment"
+    // عند Digital تكون null مباشرة — الـ Frontend لا يرى الحقل أصلاً
+    public List<BranchOptionDto>? Branches { get; init; }
+}
+
+public sealed record BranchOptionDto
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string Address { get; init; }
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
-public sealed class GetMinistryServicesHandler(IAppDbContext context)
+
+// Application/Features/Ministries/GetMinistryServicesQuery.cs
+
+public sealed class GetMinistryServicesHandler
     : IRequestHandler<GetMinistryServicesQuery, Result<List<MinistryServiceDto>>>
 {
+    private readonly IAppDbContext _context;
+    public GetMinistryServicesHandler(IAppDbContext context) => _context = context;
+
     public async Task<Result<List<MinistryServiceDto>>> Handle(
         GetMinistryServicesQuery request, CancellationToken cancellationToken)
     {
-        // التحقق أن الوزارة موجودة
-        var ministryExists = await context.GovernmentEntities
-            .AsNoTracking()
-            .AnyAsync(e => e.Id == request.MinistryId && e.IsActive, cancellationToken);
 
-        if (!ministryExists)
-            return Result<List<MinistryServiceDto>>.Failure("الوزارة غير موجودة");
+        var branches = await _context.Branches
+            .Where(b => b.GovernmentEntityId == request.MinistryId && b.IsActive)
+            .Select(b => new BranchOptionDto
+            {
+                Id = b.Id,
+                Name = b.Name,
+                Address = b.Address
+            })
+            .ToListAsync(cancellationToken);
 
-        var services = await context.GovernmentServices
-            .AsNoTracking()
+        var services = await _context.GovernmentServices
             .Where(s => s.GovernmentEntityId == request.MinistryId && s.IsActive)
-            .OrderBy(s => s.Name)
             .Select(s => new MinistryServiceDto
             {
-                Id           = s.Id,
-                Name         = s.Name,
-                Description  = s.Description,
+                Id = s.Id,
+                Name = s.Name,
+                Description = s.Description,
+                ServiceType = s.ServiceType.ToString(),
+                ServiceFee = s.ServiceFee,
                 Requirements = s.Requirements,
-                ServiceFee   = s.ServiceFee,
-                ServiceType  = s.ServiceType
+
+                // Appointment → يُرجع الفروع | Digital → null
+                Branches = s.ServiceType == ServiceType.Appointment
+                    ? branches
+                    : null
             })
             .ToListAsync(cancellationToken);
 

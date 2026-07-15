@@ -103,20 +103,17 @@ namespace EGovServices.Infrastructure.Migrations
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(100)");
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .IsUnicode(true)
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("FilePath")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(1000)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint");
@@ -124,16 +121,27 @@ namespace EGovServices.Infrastructure.Migrations
                     b.Property<string>("FileType")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(50)");
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<Guid>("ServiceRequestId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("VerificationToken")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<DateTime?>("VerificationTokenExpiresAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("ServiceRequestId")
-                        .HasDatabaseName("IX_Attachments_ServiceRequestId");
+                    b.HasIndex("ServiceRequestId");
+
+                    b.HasIndex("VerificationToken")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Attachments_VerificationToken")
+                        .HasFilter("[VerificationToken] IS NOT NULL");
 
                     b.ToTable("Attachments", (string)null);
                 });
@@ -200,128 +208,85 @@ namespace EGovServices.Infrastructure.Migrations
 
                     b.Property<string>("Address")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateOnly>("BirthDate")
                         .HasColumnType("date");
 
                     b.Property<string>("Email")
-                        .HasMaxLength(200)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(200)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FatherName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Gender")
-                        .IsRequired()
                         .HasMaxLength(10)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(10)");
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .IsUnicode(true)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaritalStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("MotherName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PlaceOfBirth")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .IsUnicode(true)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RecordNumber")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("RecordPlace")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Religion")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.HasKey("NationalNumber");
 
                     b.ToTable("Citizens", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            NationalNumber = "01100000003",
-                            Address = "اللاذقية - المشروع الأول",
-                            BirthDate = new DateOnly(2000, 1, 15),
-                            Email = "yassin@example.com",
-                            FatherName = "عمر",
-                            FirstName = "ياسين",
-                            Gender = "ذكر",
-                            LastName = "الكردي",
-                            MotherName = "ليلى"
-                        },
-                        new
-                        {
-                            NationalNumber = "01200000002",
-                            Address = "دمشق - المزة",
-                            BirthDate = new DateOnly(1998, 11, 22),
-                            Email = "sara@example.com",
-                            FatherName = "محمود",
-                            FirstName = "سارة",
-                            Gender = "أنثى",
-                            LastName = "الأحمد",
-                            MotherName = "مريم"
-                        },
-                        new
-                        {
-                            NationalNumber = "02100000001",
-                            Address = "حلب - حي الفرقان",
-                            BirthDate = new DateOnly(1995, 5, 10),
-                            Email = "ahmed@example.com",
-                            FatherName = "محمد",
-                            FirstName = "أحمد",
-                            Gender = "ذكر",
-                            LastName = "المنصور",
-                            MotherName = "فاطمة"
-                        },
-                        new
-                        {
-                            NationalNumber = "02250150972",
-                            Address = "حلب - الشيخ مقصود",
-                            BirthDate = new DateOnly(2002, 12, 29),
-                            Email = "basharhannan400@gmail.com",
-                            FatherName = "عماد",
-                            FirstName = "بشار",
-                            Gender = "ذكر",
-                            LastName = "حنان",
-                            MotherName = "فريدة"
-                        });
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.CitizenPhone", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier")
-                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("CitizenNationalNumber")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
                         .HasColumnType("varchar(20)");
 
                     b.Property<string>("Number")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CitizenNationalNumber")
-                        .HasDatabaseName("IX_CitizenPhones_NationalNumber");
+                    b.HasIndex("CitizenNationalNumber");
 
-                    b.ToTable("CitizenPhones", (string)null);
+                    b.ToTable("CitizenPhones");
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.CriminalRecord", b =>
@@ -335,6 +300,9 @@ namespace EGovServices.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("CitizenNationalNumber1")
                         .HasColumnType("varchar(20)");
 
                     b.Property<string>("CrimeDescription")
@@ -355,6 +323,8 @@ namespace EGovServices.Infrastructure.Migrations
 
                     b.HasIndex("CitizenNationalNumber")
                         .HasDatabaseName("IX_CriminalRecords_NationalNumber");
+
+                    b.HasIndex("CitizenNationalNumber1");
 
                     b.HasIndex("CitizenNationalNumber", "IsActive")
                         .HasDatabaseName("IX_CriminalRecords_NationalNumber_Active")
@@ -423,6 +393,9 @@ namespace EGovServices.Infrastructure.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
 
+                    b.Property<string>("LogoUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -432,15 +405,6 @@ namespace EGovServices.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("GovernmentEntities", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            Description = "Ministry of Interior",
-                            IsActive = true,
-                            Name = "وزارة الداخلية"
-                        });
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.GovernmentService", b =>
@@ -494,20 +458,6 @@ namespace EGovServices.Infrastructure.Migrations
                         .HasFilter("[IsActive] = 1");
 
                     b.ToTable("GovernmentServices", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "خدمة تجديد جواز السفر منتهي الصلاحية",
-                            GovernmentEntityId = new Guid("11111111-1111-1111-1111-111111111111"),
-                            IsActive = true,
-                            Name = "تجديد جواز السفر",
-                            Requirements = "صورة شخصية + جواز السفر القديم + إثبات السكن",
-                            ServiceFee = 150.00m,
-                            ServiceType = 1
-                        });
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.Notification", b =>
@@ -704,44 +654,6 @@ namespace EGovServices.Infrastructure.Migrations
                         .HasFilter("[IsActive] = 1");
 
                     b.ToTable("ServiceFieldOptions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("44444444-0001-0001-0001-000000000001"),
-                            DisplayOrder = 1,
-                            IsActive = true,
-                            OptionLabel = "أعزب/عزباء",
-                            OptionValue = "single",
-                            ServiceFormFieldId = new Guid("33333333-0001-0001-0001-000000000009")
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-0001-0001-0001-000000000002"),
-                            DisplayOrder = 2,
-                            IsActive = true,
-                            OptionLabel = "متزوج/متزوجة",
-                            OptionValue = "married",
-                            ServiceFormFieldId = new Guid("33333333-0001-0001-0001-000000000009")
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-0001-0001-0001-000000000003"),
-                            DisplayOrder = 3,
-                            IsActive = true,
-                            OptionLabel = "مطلق/مطلقة",
-                            OptionValue = "divorced",
-                            ServiceFormFieldId = new Guid("33333333-0001-0001-0001-000000000009")
-                        },
-                        new
-                        {
-                            Id = new Guid("44444444-0001-0001-0001-000000000004"),
-                            DisplayOrder = 4,
-                            IsActive = true,
-                            OptionLabel = "أرمل/أرملة",
-                            OptionValue = "widowed",
-                            ServiceFormFieldId = new Guid("33333333-0001-0001-0001-000000000009")
-                        });
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.ServiceFormField", b =>
@@ -819,125 +731,6 @@ namespace EGovServices.Infrastructure.Migrations
                         .HasFilter("[IsActive] = 1");
 
                     b.ToTable("ServiceFormFields", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000001"),
-                            DisplayOrder = 1,
-                            FieldName = "fullName",
-                            FieldType = "text",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            HelpText = "يجب أن يطابق الاسم المسجل في الهوية الوطنية",
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "الاسم الكامل",
-                            Placeholder = "أدخل اسمك الرباعي كما في الهوية",
-                            ValidationRules = "{\"minLength\":3,\"maxLength\":100}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000002"),
-                            DisplayOrder = 2,
-                            FieldName = "nationalNumber",
-                            FieldType = "text",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "رقم الهوية الوطنية",
-                            Placeholder = "1234567890",
-                            ValidationRules = "{\"length\":10,\"pattern\":\"^[0-9]{10}$\"}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000003"),
-                            DisplayOrder = 3,
-                            FieldName = "currentPassportNumber",
-                            FieldType = "text",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "رقم جواز السفر الحالي",
-                            Placeholder = "ABC123456",
-                            ValidationRules = "{\"pattern\":\"^[A-Z]{3}[0-9]{6}$\",\"customMessage\":\"يجب أن يكون رقم الجواز بصيغة ABC123456\"}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000004"),
-                            DisplayOrder = 4,
-                            FieldName = "phoneNumber",
-                            FieldType = "tel",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "رقم الجوال",
-                            Placeholder = "0501234567",
-                            ValidationRules = "{\"pattern\":\"^05[0-9]{8}$\"}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000005"),
-                            DisplayOrder = 5,
-                            FieldName = "email",
-                            FieldType = "email",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "البريد الإلكتروني",
-                            Placeholder = "example@email.com",
-                            ValidationRules = "{\"pattern\":\"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,}$\"}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000006"),
-                            DisplayOrder = 6,
-                            FieldName = "personalPhoto",
-                            FieldType = "file",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            HelpText = "صورة بخلفية بيضاء، مقاس 4×6 سم",
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "صورة شخصية حديثة",
-                            Metadata = "{\"accept\":\".jpg,.jpeg,.png\",\"maxSizeMB\":5}",
-                            ValidationRules = "{\"maxSize\":5242880,\"allowedTypes\":[\"image/jpeg\",\"image/png\"]}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000007"),
-                            DisplayOrder = 7,
-                            FieldName = "currentAddress",
-                            FieldType = "textarea",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "العنوان الحالي",
-                            Placeholder = "أدخل عنوانك بالتفصيل",
-                            ValidationRules = "{\"minLength\":10,\"maxLength\":200}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000008"),
-                            DisplayOrder = 8,
-                            FieldName = "preferredPickupDate",
-                            FieldType = "date",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            HelpText = "سيتم إشعارك بالموعد النهائي خلال 48 ساعة",
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "تاريخ الاستلام المفضل",
-                            ValidationRules = "{\"minDate\":\"today+7\",\"maxDate\":\"today+30\"}"
-                        },
-                        new
-                        {
-                            Id = new Guid("33333333-0001-0001-0001-000000000009"),
-                            DisplayOrder = 9,
-                            FieldName = "maritalStatus",
-                            FieldType = "select",
-                            GovernmentServiceId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            IsActive = true,
-                            IsRequired = true,
-                            Label = "الحالة الاجتماعية"
-                        });
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.ServiceRequest", b =>
@@ -1263,7 +1056,7 @@ namespace EGovServices.Infrastructure.Migrations
             modelBuilder.Entity("EGovServices.Domain.Entities.CitizenPhone", b =>
                 {
                     b.HasOne("EGovServices.Domain.Entities.Citizen", "Citizen")
-                        .WithMany("Phones")
+                        .WithMany()
                         .HasForeignKey("CitizenNationalNumber")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1279,13 +1072,17 @@ namespace EGovServices.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("EGovServices.Domain.Entities.Citizen", null)
+                        .WithMany("CriminalRecords")
+                        .HasForeignKey("CitizenNationalNumber1");
+
                     b.Navigation("Citizen");
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.GovernmentService", b =>
                 {
                     b.HasOne("EGovServices.Domain.Entities.GovernmentEntity", "GovernmentEntity")
-                        .WithMany("Services")
+                        .WithMany("GovernmentServices")
                         .HasForeignKey("GovernmentEntityId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1438,7 +1235,7 @@ namespace EGovServices.Infrastructure.Migrations
 
             modelBuilder.Entity("EGovServices.Domain.Entities.Citizen", b =>
                 {
-                    b.Navigation("Phones");
+                    b.Navigation("CriminalRecords");
 
                     b.Navigation("User");
                 });
@@ -1447,7 +1244,7 @@ namespace EGovServices.Infrastructure.Migrations
                 {
                     b.Navigation("Branches");
 
-                    b.Navigation("Services");
+                    b.Navigation("GovernmentServices");
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.GovernmentService", b =>

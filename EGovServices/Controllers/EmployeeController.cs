@@ -15,13 +15,13 @@ public sealed class EmployeeController(IMediator mediator) : ControllerBase
 {
     /// <summary>الطلبات المعلقة وقيد المراجعة</summary>
     [HttpGet("requests")]
-    public async Task<IActionResult> GetPendingRequests(
+    public async Task<IActionResult> GetPendingPaymentRequests(
         [FromQuery] string? status,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        // الموظف يرى فقط Pending و UnderReview افتراضياً
-        var effectiveStatus = status ?? "Pending";
+        // الموظف يرى فقط PendingPayment و UnderReview افتراضياً
+        var effectiveStatus = status ?? "PendingPayment";
 
         var result = await mediator.Send(new GetAdminRequestsQuery
         {

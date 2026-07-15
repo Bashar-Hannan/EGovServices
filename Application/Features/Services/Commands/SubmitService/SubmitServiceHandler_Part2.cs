@@ -92,12 +92,20 @@ public sealed partial class SubmitServiceHandler
         _ => null
     };
 
-    private async Task<string> GenerateReferenceNumber(CancellationToken ct)
+    private Task<string> GenerateReferenceNumber(CancellationToken ct)
     {
-        var year = DateTime.UtcNow.Year;
-        // جلب العدد الإجمالي مباشرة دون إجبار EF على مقارنة تواريخ معقدة في السيرفر
-        var count = await context.ServiceRequests.CountAsync(ct);
+        var now = DateTime.UtcNow;
 
-        return $"REQ-{year}-{(count + 1):D6}";
+        // 1. استخدام طابع زمني دقيق جداً (السنة والشهر واليوم والساعة والدقيقة)
+        var timestamp = now.ToString("yyyyMMddHHmm");
+
+        // 2. توليد جزء عشوائي فريد ومختصر (مكون من 6 محارف) لمنع أي تكرار متزامن
+        var uniquePart = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        // النتيجة ستكون بشكل منظم وثابت مثل: REQ-202606251430-BF3A12
+        var refNumber = $"REQ-{timestamp}-{uniquePart}";
+
+        // بما أننا لا نستخدم await هنا، نُرجع النتيجة كـ Task مكتمل مباشرة لرفع الأداء
+        return Task.FromResult(refNumber);
     }
 }

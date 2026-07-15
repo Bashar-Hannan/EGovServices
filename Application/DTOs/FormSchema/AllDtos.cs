@@ -1,6 +1,8 @@
 // ============================================================
 // File: Application/DTOs/FormSchema/FormSchemaDtos.cs
 // ============================================================
+using EGovServices.Domain.Enums;
+
 namespace EGovServices.Application.DTOs.FormSchema;
 
 public sealed record FormSchemaResponse
@@ -10,6 +12,9 @@ public sealed record FormSchemaResponse
     public required string Description { get; init; }
     public string? Requirements { get; init; }
     public required decimal ServiceFee { get; init; }
+    public required ServiceType ServiceType { get; init; }
+    public string ServiceTypeLabel {  get; init; }
+    public List<BranchOptionDto>? Branches { get; init; }      // ? √÷› Â–«
     public required List<FormFieldDto> Fields { get; init; } = [];
 }
 
@@ -49,5 +54,10 @@ public sealed record FieldOptionDto
     public required string Label { get; init; }
 }
 
-
+public sealed record BranchOptionDto
+{
+    public required Guid   Id      { get; init; }
+    public required string Name    { get; init; }
+    public required string Address { get; init; }
+}
 

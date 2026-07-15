@@ -1,21 +1,23 @@
 using EGovServices.Application.DTOs;
+using EGovServices.Application.DTOs.CivilRecord;
 
 namespace EGovServices.Application.Common.Interfaces;
 
 /// <summary>
-/// Contract for generating PDF documents.
-/// Application layer depends on this interface only.
-/// The actual PDF library (QuestPDF) lives in Infrastructure.
+/// Contract áÊæáíÏ ãáİÇÊ PDF.
+/// Application Layer íÚÊãÏ Úáì åĞÇ ÇáÜ Interface İŞØ.
+/// ÇáãßÊÈÇÊ ÇáİÚáíÉ (QuestPDF / PuppeteerSharp) ãæÌæÏÉ İí Infrastructure.
 /// </summary>
 public interface IPdfService
 {
     /// <summary>
-    /// Generates a Criminal Record Clearance Certificate PDF.
+    /// íæáøÏ ÔåÇÏÉ ÚÏã ÇáãÍßæãíÉ PDF.
     /// </summary>
-    /// <param name="data">All data needed to populate the PDF</param>
-    /// <returns>
-    /// Full file path where the PDF was saved.
-    /// Example: "C:\EGovFiles\Certificates\cert_2026_000001.pdf"
-    /// </returns>
     Task<string> GenerateClearanceCertificateAsync(ClearanceCertificatePdfData data);
+
+    /// <summary>
+    /// íæáøÏ æËíŞÉ ÅÎÑÇÌ ŞíÏ İÑÏí ãÏäí PDF.
+    /// íÓÊÎÏã HTML Template + PuppeteerSharp ááÊÍæíá.
+    /// </summary>
+    Task<string> GenerateCivilRecordAsync(CivilRecordPdfData data);
 }

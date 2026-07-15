@@ -28,7 +28,7 @@ public class CriminalRecord
 
     /// <summary>
     /// Whether this record is currently active (unsettled sentence).
-    /// true  = active criminal record (pending or ongoing sentence)
+    /// true  = active criminal record (PendingPayment or ongoing sentence)
     /// false = record exists but sentence completed / pardoned
     /// </summary>
     public required bool IsActive { get; set; }

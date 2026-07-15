@@ -9,39 +9,65 @@ public class CitizenConfiguration : IEntityTypeConfiguration<Citizen>
     public void Configure(EntityTypeBuilder<Citizen> builder)
     {
         builder.ToTable("Citizens");
+
         builder.HasKey(x => x.NationalNumber);
-        builder.Property(x => x.NationalNumber).IsRequired().HasMaxLength(20).IsUnicode(false);
-        builder.Property(x => x.FirstName).IsRequired().HasMaxLength(100).IsUnicode(true);
-        builder.Property(x => x.LastName).IsRequired().HasMaxLength(100).IsUnicode(true);
-        builder.Property(x => x.FatherName).IsRequired().HasMaxLength(100).IsUnicode(true);
-        builder.Property(x => x.MotherName).IsRequired().HasMaxLength(100).IsUnicode(true);
-        builder.Property(x => x.Gender).IsRequired().HasMaxLength(10).IsUnicode(false);
-        builder.Property(x => x.Address).IsRequired().HasMaxLength(500).IsUnicode(true);
-        builder.Property(x => x.BirthDate).IsRequired().HasColumnType("date");
-        builder.Property(x => x.Email).HasMaxLength(200).IsUnicode(false).IsRequired(false);
 
-        builder.HasMany(x => x.Phones)
+        builder.Property(x => x.NationalNumber)
+            .IsRequired()
+            .HasMaxLength(20)
+            .IsUnicode(false);
+
+        builder.Property(x => x.FirstName)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        builder.Property(x => x.FatherName)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        builder.Property(x => x.LastName)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        builder.Property(x => x.BirthDate)
+            .IsRequired()
+            .HasColumnType("date");
+
+        builder.Property(x => x.PlaceOfBirth)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.Property(x => x.MaritalStatus)
+            .IsRequired()
+            .HasMaxLength(20);
+
+        // ?? NEW — ÍÞæá ÇáÞíÏ ÇáãÏäí ??????????????????????????????????
+        builder.Property(x => x.MotherName)
+            .HasMaxLength(100)
+            .IsRequired(false);
+
+        builder.Property(x => x.Religion)
+            .HasMaxLength(30)
+            .IsRequired(false);
+
+        builder.Property(x => x.Gender)
+            .HasMaxLength(10)
+            .IsRequired(false);
+
+        builder.Property(x => x.RecordPlace)
+            .HasMaxLength(100)
+            .IsRequired(false);
+
+        builder.Property(x => x.RecordNumber)
+            .HasMaxLength(20)
+            .IsRequired(false)
+            .IsUnicode(false);
+
+        // ?? ÚáÇÞÉ ãÚ User ????????????????????????????????????????????
+        builder.HasOne(x => x.User)
             .WithOne(x => x.Citizen)
-            .HasForeignKey(x => x.CitizenNationalNumber)
-            .OnDelete(DeleteBehavior.Cascade);
-    }
-}
-
-public class CitizenPhoneConfiguration : IEntityTypeConfiguration<CitizenPhone>
-{
-    public void Configure(EntityTypeBuilder<CitizenPhone> builder)
-    {
-        builder.ToTable("CitizenPhones");
-        builder.HasKey(x => x.Id);
-        builder.Property(x => x.Id).HasDefaultValueSql("NEWSEQUENTIALID()");
-        builder.Property(x => x.Number).IsRequired().HasMaxLength(20).IsUnicode(false);
-        builder.Property(x => x.CitizenNationalNumber).IsRequired().HasMaxLength(20).IsUnicode(false);
-
-        builder.HasOne(x => x.Citizen)
-            .WithMany(x => x.Phones)
-            .HasForeignKey(x => x.CitizenNationalNumber)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(x => x.CitizenNationalNumber).HasDatabaseName("IX_CitizenPhones_NationalNumber");
+            .HasForeignKey<User>(x => x.NationalNumber)
+            .HasPrincipalKey<Citizen>(x => x.NationalNumber)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

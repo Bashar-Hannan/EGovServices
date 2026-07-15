@@ -11,10 +11,13 @@ public sealed record GetMinistriesQuery : IRequest<Result<List<MinistryDto>>>;
 // ─── DTO ──────────────────────────────────────────────────────────────────────
 public sealed record MinistryDto
 {
-    public required Guid   Id          { get; init; }
-    public required string Name        { get; init; }
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
     public required string Description { get; init; }
-    public required int    ServiceCount { get; init; }  // عدد الخدمات للعرض في الكارد
+    public required int ServiceCount { get; init; }
+
+    // ✅ جديد — مسار نسبي للصورة، null إذا لم تُضف بعد
+    public string? LogoUrl { get; init; }
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -30,10 +33,11 @@ public sealed class GetMinistriesHandler(IAppDbContext context)
             .OrderBy(e => e.Name)
             .Select(e => new MinistryDto
             {
-                Id           = e.Id,
-                Name         = e.Name,
-                Description  = e.Description,
-                ServiceCount = e.Services.Count(s => s.IsActive)
+                Id = e.Id,
+                Name = e.Name,
+                Description = e.Description,
+                ServiceCount = e.GovernmentServices.Count(s => s.IsActive),
+                LogoUrl = e.LogoUrl   // ✅ يُرجع المسار مباشرةً
             })
             .ToListAsync(cancellationToken);
 

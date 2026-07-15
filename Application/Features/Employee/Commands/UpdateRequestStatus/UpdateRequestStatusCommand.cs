@@ -57,7 +57,7 @@ public sealed class UpdateRequestStatusHandler(IAppDbContext context)
     // State machine — الانتقالات المسموحة فقط
     private static readonly Dictionary<string, string[]> ValidTransitions = new()
     {
-        ["Pending"]     = ["UnderReview", "Rejected"],
+        ["PendingPayment"]     = ["UnderReview", "Rejected"],
         ["UnderReview"] = ["Approved", "Rejected"],
         ["Approved"]    = ["Completed"],
         ["Rejected"]    = [],

@@ -38,8 +38,8 @@ public sealed class ServicesController(IMediator mediator) : ControllerBase
         {
             ServiceId = request.ServiceId,
             UserId = userId,
-            FormData = request.FormData,
-            BranchId = request.BranchId
+            FormData = request.FormData
+            // BranchId محذوف — يجي جوا FormData
         });
 
         return result.Match<IActionResult>(

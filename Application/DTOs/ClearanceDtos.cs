@@ -6,35 +6,20 @@ namespace EGovServices.Application.DTOs;
 /// </summary>
 public sealed record ClearanceCertificatePdfData
 {
-    /// <summary>Full name of the citizen (First + Father + Last)</summary>
     public required string FullName { get; init; }
-
-    /// <summary>National ID number printed on the certificate</summary>
     public required string NationalNumber { get; init; }
-
-    /// <summary>
-    /// "لا توجد سوابق جنائية" OR list of crimes if any found
-    /// </summary>
     public required string CheckResult { get; init; }
-
-    /// <summary>
-    /// Whether the citizen has active criminal records.
-    /// Determines the certificate stamp color (green/red) in the PDF.
-    /// </summary>
     public required bool HasActiveCrimes { get; init; }
-
-    /// <summary>Date the certificate was issued (printed on document)</summary>
     public required DateOnly IssueDate { get; init; }
-
-    /// <summary>Unique certificate reference number (REQ-2026-000001)</summary>
     public required string ReferenceNumber { get; init; }
-
-    /// <summary>
-    /// Raw FormData from ServiceRequest (JSON).
-    /// Used to print any extra fields the citizen filled in the dynamic form.
-    /// Optional — can be null if no extra fields defined for this service.
-    /// </summary>
     public string? FormDataJson { get; init; }
+
+    // ── NEW ──────────────────────────────────────────────────────────
+    /// <summary>
+    /// Token التحقق المولَّد من IVerificationTokenService.
+    /// يُحقن في الـ QR Code داخل الـ PDF.
+    /// </summary>
+    public required string VerificationToken { get; init; }
 }
 
 /// <summary>

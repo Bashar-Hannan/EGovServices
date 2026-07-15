@@ -56,8 +56,8 @@ public sealed class ReviewAppointmentDocumentsHandler(IAppDbContext context)
         if (serviceRequest is null)
             return Result<ReviewAppointmentDocumentsResponse>.Failure("الطلب غير موجود");
 
-        // الحالة يجب أن تكون Pending أو DocumentsUnderReview فقط
-        if (serviceRequest.Status != RequestStatus.Pending &&
+        // الحالة يجب أن تكون PendingPayment أو DocumentsUnderReview فقط
+        if (serviceRequest.Status != RequestStatus.PendingPayment &&
             serviceRequest.Status != RequestStatus.DocumentsUnderReview)
         {
             return Result<ReviewAppointmentDocumentsResponse>.Failure(

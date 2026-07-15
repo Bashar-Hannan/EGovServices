@@ -103,7 +103,7 @@ public sealed class BookAppointmentHandler(IAppDbContext context)
             GovernmentServiceId = request.GovernmentServiceId,
             AppointmentSlotId   = slot.Id,
             ReferenceNumber     = referenceNumber,
-            Status              = RequestStatus.Pending,
+            Status              = RequestStatus.PendingPayment,
             FormData            = request.FormData,
             SubmissionDate      = DateTime.UtcNow,
             IsDeleted           = false

@@ -1,7 +1,8 @@
 ﻿using EGovServices.Application.Common.Interfaces;
 using EGovServices.Domain.Entities;
-using EGovServices.Infrastructure.Persistence.SeedData;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.Extensions.Configuration;
 
 namespace EGovServices.Infrastructure.Persistence;
 
@@ -38,10 +39,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
-        CitizenSeedData.Seed(modelBuilder);
-        ServiceFormSeedData.Seed(modelBuilder);
         //#if DEBUG
 
         //#endif
     }
 }
+

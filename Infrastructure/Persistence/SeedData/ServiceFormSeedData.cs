@@ -1,5 +1,4 @@
 using EGovServices.Domain.Entities;
-using EGovServices.Domain.Enums; // ✅ أضفنا هذا السطر للوصول إلى ServiceType
 using Microsoft.EntityFrameworkCore;
 
 namespace EGovServices.Infrastructure.Persistence.SeedData;
@@ -14,25 +13,17 @@ public static class ServiceFormSeedData
     {
         modelBuilder.Entity<GovernmentEntity>().HasData(new GovernmentEntity
         {
-            Id = EntityId,
-            Name = "وزارة الداخلية",
-            Description = "Ministry of Interior",
-            IsActive = true
+            Id = EntityId, Name = "وزارة الداخلية",
+            Description = "Ministry of Interior", IsActive = true
         });
 
         modelBuilder.Entity<GovernmentService>().HasData(new GovernmentService
         {
-            Id = ServiceId,
-            GovernmentEntityId = EntityId,
+            Id = ServiceId, GovernmentEntityId = EntityId,
             Name = "تجديد جواز السفر",
             Description = "خدمة تجديد جواز السفر منتهي الصلاحية",
             Requirements = "صورة شخصية + جواز السفر القديم + إثبات السكن",
-            ServiceFee = 150.00m,
-            IsActive = true,
-
-            // ✅ الحقول التي تمت إضافتها لحل الخطأ
-            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), // تاريخ ثابت لتجنب مشاكل الـ Migrations
-            ServiceType = ServiceType.Appointment // تأكد أن 'Digital' موجودة في ملف الـ Enum الخاص بك
+            ServiceFee = 150.00m, IsActive = true
         });
 
         ServiceFormField[] fields =

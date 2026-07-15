@@ -1,5 +1,6 @@
 using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.DTOs;
+using EGovServices.Application.DTOs.CivilRecord;
 using Microsoft.Extensions.Configuration;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -7,32 +8,38 @@ using QuestPDF.Infrastructure;
 
 namespace EGovServices.Infrastructure.Service;
 
-public sealed class PdfService(IConfiguration config) : IPdfService
+/// <summary>
+/// النسخة النهائية من PdfService:
+/// - QuestPDF بالكامل (بدون PuppeteerSharp) — يعمل على Shared Hosting
+/// - QR Code يحتوي Token فقط (بدون URL) — الفلاتر يقرأه ويستدعي API مباشرة
+/// - يعمل للوثيقتين: شهادة عدم المحكومية + إخراج القيد الفردي
+/// </summary>
+public sealed class PdfService(
+    IConfiguration config,
+    IQrCodeService qrCodeService,
+    IVerificationTokenService tokenService)
+    : IPdfService
 {
-    private readonly string _basePath = GetBasePath(config);
+    private readonly string _basePath =
+        config["PdfStorage:BasePath"] ?? Path.Combine(
+            Directory.GetCurrentDirectory(), "Certificates");
 
-    private static string GetBasePath(IConfiguration config)
-    {
-        var configured = config["PdfStorage:BasePath"];
-
-        if (string.IsNullOrEmpty(configured))
-            return Path.Combine(AppContext.BaseDirectory, "Certificates");
-
-        // لو المسار نسبي اربطه بمجلد التطبيق
-        if (!Path.IsPathRooted(configured))
-            return Path.Combine(AppContext.BaseDirectory, configured);
-
-        // لو مسار مطلق استخدمه مباشرة
-        return configured;
-    }
-
-    public async Task<string> GenerateClearanceCertificateAsync(ClearanceCertificatePdfData data)
+    // ════════════════════════════════════════════════════════════════
+    // 1. شهادة عدم المحكومية + QR Token
+    // ════════════════════════════════════════════════════════════════
+    public async Task<string> GenerateClearanceCertificateAsync(
+        ClearanceCertificatePdfData data)
     {
         if (!Directory.Exists(_basePath))
             Directory.CreateDirectory(_basePath);
 
-        var fileName = $"cert_{data.ReferenceNumber.Replace("-", "_")}_{data.IssueDate:yyyyMMdd}.pdf";
+        var safeRef = data.ReferenceNumber.Replace("-", "_");
+        var dateStamp = data.IssueDate.ToString("yyyyMMdd");
+        var fileName = $"cert_{safeRef}_{dateStamp}.pdf";
         var fullPath = Path.Combine(_basePath, fileName);
+
+        // QR يحتوي Token فقط — الفلاتر يقرأه ويستدعي API مباشرة
+        var qrBytes = qrCodeService.GenerateQrCodeBytes(data.VerificationToken);
 
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -41,152 +48,88 @@ public sealed class PdfService(IConfiguration config) : IPdfService
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(30);
-                // استخدام خط يدعم العربية (تأكد من تنصيبه على السيرفر)
-                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(12));
 
-                // 1. الترويسة العليا (مقسمة لثلاثة أقسام حسب الصورة)
-                page.Header().Column(headerCol =>
+                page.Header().Column(col =>
                 {
-                    headerCol.Item().Row(row =>
+                    col.Item().Row(row =>
                     {
-                        // القسم الأيسر: الصلاحية والتاريخ
-                        row.RelativeItem().Column(col =>
+                        // العنوان
+                        row.RelativeItem().Column(inner =>
                         {
-                            col.Item().Text("تعتبر صالحة لمدة ثلاثة أشهر فقط").FontSize(9);
-                            col.Item().Text($"الرقم: {data.ReferenceNumber}");
-                            col.Item().Text($"التاريخ: {data.IssueDate:yyyy/MM/dd}");
-                            col.Item().Text("الموافق: 0"); // أو أي قيمة إضافية
+                            inner.Item().AlignCenter()
+                                .Text("الجمهورية العربية السورية")
+                                .Bold().FontSize(16);
+                            inner.Item().AlignCenter()
+                                .Text("وزارة الداخلية")
+                                .Bold().FontSize(14);
+                            inner.Item().Height(8);
+                            inner.Item().AlignCenter()
+                                .Text("شهادة عدم المحكومية")
+                                .Bold().FontSize(18).Underline();
+                            inner.Item().AlignCenter()
+                                .Text($"رقم المرجع: {data.ReferenceNumber}")
+                                .FontSize(11).FontColor(Colors.Grey.Darken2);
                         });
 
-                        // القسم الأوسط: الشعار الوطني
-                        row.ConstantItem(100).AlignCenter().Column(col =>
+                        // QR Token — زاوية يمين الترويسة
+                        row.ConstantItem(80).Column(qrCol =>
                         {
-                            col.Item().Height(60).Placeholder(); // هنا يوضع شعار النسر السوري
-                            col.Item().PaddingTop(2).AlignCenter().Text("№ 010000").FontSize(12).Bold();
-                        });
-
-                        // القسم الأيمن: الجهة المصدرة
-                        row.RelativeItem().AlignRight().Column(col =>
-                        {
-                            col.Item().Text("الجمهورية العربية السورية").Bold().FontSize(12);
-                            col.Item().Text("وزارة الداخلية").Bold();
-                            col.Item().Text("فرع الأمن الجنائي");
-                            col.Item().Text("مكتب السجل العدلي");
+                            qrCol.Item().Width(70).Height(70).Image(qrBytes);
+                            qrCol.Item().AlignCenter()
+                                .Text("للتحقق من الوثيقة")
+                                .FontSize(7).FontColor(Colors.Grey.Darken1);
                         });
                     });
 
-                    headerCol.Item().PaddingTop(10).AlignCenter().Text("خلاصة السجل العدلي")
-                        .FontSize(20).Bold();
+                    col.Item().Height(16);
                 });
 
-                // 2. محتوى البيانات الشخصية والـ QR
-                page.Content().PaddingVertical(20).Column(contentCol =>
+                page.Content().Column(col =>
                 {
-                    contentCol.Item().Row(row =>
+                    col.Item().BorderBottom(1).PaddingBottom(8).Column(inner =>
                     {
-                        // الـ QR Code على اليسار
-                        row.ConstantItem(100).Column(qrCol => {
-                            qrCol.Item().Height(80).Width(80).Background(Colors.Grey.Lighten3).AlignCenter().Text("QR Code");
-                        });
-
-                        // جدول البيانات الشخصية (عمودين كما في الصورة)
-                        row.RelativeItem().PaddingLeft(20).Table(table =>
+                        inner.Item().Text("بيانات المواطن").Bold().FontSize(13);
+                        inner.Item().Height(6);
+                        inner.Item().Row(row =>
                         {
-                            table.ColumnsDefinition(columns =>
-                            {
-                                columns.RelativeColumn(); // القيمة يسار
-                                columns.ConstantColumn(120); // التسمية يسار
-                                columns.RelativeColumn(); // القيمة يمين
-                                columns.ConstantColumn(80); // التسمية يمين
-                            });
-
-                            // السطر الأول
-                            table.Cell().Text("نموذج خـ 11"); // محل القيد
-                            table.Cell().AlignRight().Text(" :محل ورقم القيد");
-                            table.Cell().Text(data.FullName);
-                            table.Cell().AlignRight().Text(" :الاسم");
-
-                            // السطر الثاني
-                            table.Cell().Text("دمشق");
-                            table.Cell().AlignRight().Text(" :المحافظة المقيد بها");
-                            table.Cell().Text("كنية النموذج");
-                            table.Cell().AlignRight().Text(" :النسبة");
-
-                            // السطر الثالث
-                            table.Cell().Text("سورية");
-                            table.Cell().AlignRight().Text(" :الجنسية");
-                            table.Cell().Text("اسم الأب");
-                            table.Cell().AlignRight().Text(" :اسم الأب");
-
-                            // السطر الرابع
-                            table.Cell().Text("دمشق - المزة");
-                            table.Cell().AlignRight().Text(" :محل الإقامة الحالي");
-                            table.Cell().Text("اسم الأم");
-                            table.Cell().AlignRight().Text(" :اسم الأم");
-
-                            // السطر الخامس
-                            table.Cell().Text(data.NationalNumber);
-                            table.Cell().AlignRight().Text(" :رقم البطاقة الشخصية");
-                            table.Cell().Text("دمشق 01/01/1990");
-                            table.Cell().AlignRight().Text(" :محل وتاريخ الولادة");
+                            row.RelativeItem().Text($"الاسم الكامل:  {data.FullName}");
+                            row.RelativeItem().Text($"رقم الهوية:    {data.NationalNumber}");
                         });
                     });
 
-                    // 3. جدول الأحكام (Court Table)
-                    contentCol.Item().PaddingTop(20).Table(table =>
+                    col.Item().Height(16);
+
+                    col.Item().Column(inner =>
                     {
-                        table.ColumnsDefinition(columns =>
-                        {
-                            columns.RelativeColumn(); // العقوبة
-                            columns.RelativeColumn(); // تاريخ ورقم الحكم
-                            columns.RelativeColumn(); // الجرم
-                            columns.RelativeColumn(); // اسم المحكمة
-                        });
+                        inner.Item().Text("نتيجة الفحص الجنائي").Bold().FontSize(13);
+                        inner.Item().Height(8);
 
-                        table.Header(header =>
-                        {
-                            header.Cell().BorderBottom(1).AlignCenter().Text("العقوبة");
-                            header.Cell().BorderBottom(1).AlignCenter().Text("تاريخ ورقم الحكم");
-                            header.Cell().BorderBottom(1).AlignCenter().Text("الجرم");
-                            header.Cell().BorderBottom(1).AlignCenter().Text("اسم المحكمة");
-                        });
+                        var boxColor = data.HasActiveCrimes ? Colors.Red.Lighten4 : Colors.Green.Lighten4;
+                        var textColor = data.HasActiveCrimes ? Colors.Red.Darken3 : Colors.Green.Darken3;
 
-                        // إذا كان هناك جرائم تضاف هنا، وإلا تترك فارغة
-                        if (data.HasActiveCrimes)
-                        {
-                            table.Cell().AlignCenter().Text("سجن سنة");
-                            table.Cell().AlignCenter().Text("2024/100");
-                            table.Cell().AlignCenter().Text("سرقة");
-                            table.Cell().AlignCenter().Text("بداية الجزاء");
-                        }
-                    });
-
-                    // 4. مربع النتيجة (غير محكوم)
-                    contentCol.Item().PaddingTop(30).AlignCenter().Width(200).Border(1.5f).Padding(10).Column(resCol =>
-                    {
-                        if (!data.HasActiveCrimes)
-                        {
-                            resCol.Item().AlignCenter().Text("غير محكوم").FontSize(22).Bold();
-                        }
-                        else
-                        {
-                            resCol.Item().AlignCenter().Text("عليه أحكام").FontSize(18).Bold().FontColor(Colors.Red.Medium);
-                        }
+                        col.Item()
+                            .Background(boxColor).Border(1)
+                            .BorderColor(data.HasActiveCrimes ? Colors.Red.Medium : Colors.Green.Medium)
+                            .Padding(12)
+                            .Text(data.CheckResult)
+                            .FontColor(textColor).FontSize(12);
                     });
                 });
 
-                // 5. التوقيع والختم السفلي
-                page.Footer().Row(row =>
+                page.Footer().Column(col =>
                 {
-                    row.RelativeItem().Column(col =>
+                    col.Item().BorderTop(1).PaddingTop(8).Row(row =>
                     {
-                        col.Item().Height(50).Placeholder(); // ختم النسر السفلي
-                    });
-
-                    row.RelativeItem().AlignRight().PaddingTop(20).Column(col =>
-                    {
-                        col.Item().Text("مكتب السجل العدلي").Bold();
+                        row.RelativeItem()
+                            .Text($"تاريخ الإصدار: {data.IssueDate:dd/MM/yyyy}");
+                        row.RelativeItem().AlignCenter()
+                            .Text("امسح QR للتحقق من صحة الوثيقة عبر التطبيق")
+                            .FontSize(8).FontColor(Colors.Grey.Darken1);
+                        row.RelativeItem().AlignRight()
+                            .Text("صادرة إلكترونياً — صالحة بدون توقيع")
+                            .FontSize(9).FontColor(Colors.Grey.Darken1);
                     });
                 });
             });
@@ -194,5 +137,169 @@ public sealed class PdfService(IConfiguration config) : IPdfService
 
         await Task.Run(() => document.GeneratePdf(fullPath));
         return fullPath;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 2. إخراج القيد الفردي + QR Token
+    // ════════════════════════════════════════════════════════════════
+    public async Task<string> GenerateCivilRecordAsync(CivilRecordPdfData data)
+    {
+        if (!Directory.Exists(_basePath))
+            Directory.CreateDirectory(_basePath);
+
+        var safeRef = data.ReferenceNumber.Replace("-", "_");
+        var fileName = $"civil_{safeRef}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+        var fullPath = Path.Combine(_basePath, fileName);
+
+        // QR يحتوي Token فقط
+        var qrBytes = qrCodeService.GenerateQrCodeBytes(data.VerificationToken);
+
+        QuestPDF.Settings.License = LicenseType.Community;
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(25);
+                page.DefaultTextStyle(x => x.FontSize(10));
+
+                page.Background().Border(2).BorderColor("#2C5F2E").Padding(4)
+                    .Border(1).BorderColor("#2C5F2E");
+
+                page.Header().PaddingBottom(10).Column(col =>
+                {
+                    col.Item().Row(row =>
+                    {
+                        // معلومات الجمهورية (يمين)
+                        row.RelativeItem().Column(side =>
+                        {
+                            side.Item().AlignRight()
+                                .Text("الجمهورية العربية السورية")
+                                .Bold().FontSize(9).FontColor("#2C5F2E");
+                            side.Item().AlignRight()
+                                .Text("وزارة الداخلية")
+                                .FontSize(8).FontColor("#2C5F2E");
+                            side.Item().AlignRight()
+                                .Text("الإدارة العامة للشؤون المدنية")
+                                .FontSize(8).FontColor("#2C5F2E");
+                        });
+
+                        // العنوان (وسط)
+                        row.RelativeItem(1.3f).Column(center =>
+                        {
+                            center.Item().AlignCenter()
+                                .Text("بيان قيد فردي مدني")
+                                .Bold().FontSize(17).FontColor("#1A3D1C");
+                            center.Item().AlignCenter().PaddingTop(3)
+                                .Border(1).BorderColor("#2C5F2E").Padding(3)
+                                .Text("بيانات القيد")
+                                .Bold().FontSize(10).FontColor("#2C5F2E");
+                        });
+
+                        // QR Token + بيانات الوثيقة (يسار)
+                        row.RelativeItem().Column(side =>
+                        {
+                            side.Item().AlignCenter()
+                                .Width(65).Height(65).Image(qrBytes);
+                            side.Item().AlignCenter()
+                                .Text("للتحقق عبر التطبيق")
+                                .FontSize(7).FontColor("#2C5F2E");
+                            side.Item().Height(4);
+                            side.Item().AlignLeft()
+                                .Text($"رقم الوثيقة: {data.DocumentSerial}")
+                                .FontSize(7.5f).FontColor("#2C5F2E");
+                            side.Item().AlignLeft()
+                                .Text($"تاريخ الإصدار: {data.IssueDate}")
+                                .FontSize(7.5f).FontColor("#2C5F2E");
+                        });
+                    });
+
+                    col.Item().PaddingTop(8).BorderBottom(2).BorderColor("#2C5F2E");
+                });
+
+                page.Content().Column(col =>
+                {
+                    col.Spacing(10);
+
+                    col.Item().Element(c => SectionTitle(c, "بيانات الهوية الشخصية"));
+                    col.Item().Element(c => DataTable(c, [
+                        ("الرقم الوطني",     data.NationalNumber),
+                        ("الاسم",            data.FirstName),
+                        ("النسبة (اللقب)",   data.LastName),
+                        ("اسم الأب",         data.FatherName),
+                        ("اسم الأم ونسبتها", data.MotherFullName),
+                        ("الجنس",            data.Gender)
+                    ]));
+
+                    col.Item().Element(c => SectionTitle(c, "بيانات الولادة والجنسية"));
+                    col.Item().Element(c => DataTable(c, [
+                        ("محل الولادة",  data.PlaceOfBirth),
+                        ("تاريخ الولادة", data.DateOfBirth),
+                        ("الجنسية",      "سورية"),
+                        ("الدين",        data.Religion)
+                    ]));
+
+                    col.Item().Element(c => SectionTitle(c, "بيانات القيد المدني"));
+                    col.Item().Element(c => DataTable(c, [
+                        ("الوضع العائلي", data.MaritalStatus),
+                        ("محل القيد",     data.RecordPlace),
+                        ("رقم القيد",     data.RecordNumber),
+                        ("ملاحظات",       string.IsNullOrWhiteSpace(data.Remarks) ? "—" : data.Remarks)
+                    ]));
+                });
+
+                page.Footer().PaddingTop(8).Column(col =>
+                {
+                    col.Item().BorderTop(2).BorderColor("#2C5F2E").PaddingTop(6)
+                        .Background("#EAF3EA").Padding(6).AlignCenter()
+                        .Text($"بيان صادر عن النظام الإلكتروني للشؤون المدنية  |  " +
+                              $"رقم الطلب: {data.ReferenceNumber}  |  " +
+                              $"تاريخ الطباعة: {data.PrintDate}")
+                        .FontSize(7.5f).FontColor("#1A3D1C");
+                });
+            });
+        });
+
+        await Task.Run(() => document.GeneratePdf(fullPath));
+        return fullPath;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    private static void SectionTitle(IContainer container, string title)
+    {
+        container
+            .Background("#2C5F2E")
+            .Padding(5)
+            .Text(title)
+            .Bold().FontSize(10).FontColor(Colors.White);
+    }
+
+    private static void DataTable(
+        IContainer container,
+        (string Label, string Value)[] rows)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(3);
+                columns.RelativeColumn(7);
+            });
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                var (label, value) = rows[i];
+                var bgColor = i % 2 == 0 ? "#FFFFFF" : "#F7FBF7";
+
+                table.Cell().Border(1).BorderColor("#2C5F2E")
+                    .Background("#D4EBD4").Padding(5)
+                    .Text(label).Bold().FontSize(9).FontColor("#1A3D1C");
+
+                table.Cell().Border(1).BorderColor("#2C5F2E")
+                    .Background(bgColor).Padding(5)
+                    .Text(value ?? "—").FontSize(9.5f);
+            }
+        });
     }
 }
