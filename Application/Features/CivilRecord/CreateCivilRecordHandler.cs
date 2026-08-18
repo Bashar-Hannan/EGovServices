@@ -8,21 +8,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EGovServices.Application.Features.CivilRecord;
 
-/// <summary>
-/// Handler لمعالجة طلب إخراج القيد الفردي.
-/// يتبع نفس Pattern الخاص بـ CreateClearanceCertificateHandler تماماً.
-/// </summary>
 public sealed class CreateCivilRecordHandler(
     IAppDbContext context,
     IPdfService pdfService,
-    IHttpContextAccessor httpContextAccessor)
+    IHttpContextAccessor httpContextAccessor,
+    IVerificationTokenService verificationTokenService)   // ← أضفنا هذا
     : IRequestHandler<CreateCivilRecordCommand, Result<CreateCivilRecordResponse>>
 {
     public async Task<Result<CreateCivilRecordResponse>> Handle(
         CreateCivilRecordCommand request,
         CancellationToken cancellationToken)
     {
-        // ── STEP 1: تحميل ServiceRequest ─────────────────────────────
+        // ── STEP 1: Load ServiceRequest ───────────────────────────────
         var serviceRequest = await context.ServiceRequests
             .FirstOrDefaultAsync(r => r.Id == request.ServiceRequestId, cancellationToken);
 
@@ -32,14 +29,14 @@ public sealed class CreateCivilRecordHandler(
         if (serviceRequest.Status == "Completed")
             return Result<CreateCivilRecordResponse>.Failure("تم معالجة هذا الطلب مسبقاً");
 
-        // ── STEP 2: استخراج NationalNumber من JWT ────────────────────
+        // ── STEP 2: Extract NationalNumber from JWT ───────────────────
         var nationalNumber = httpContextAccessor.HttpContext?.User
             .FindFirst("NationalNumber")?.Value;
 
         if (string.IsNullOrEmpty(nationalNumber))
             return Result<CreateCivilRecordResponse>.Failure("تعذّر التحقق من هوية المستخدم");
 
-        // ── STEP 3: جلب بيانات Citizen ───────────────────────────────
+        // ── STEP 3: Load Citizen data ─────────────────────────────────
         var citizen = await context.Citizens
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.NationalNumber == nationalNumber, cancellationToken);
@@ -47,7 +44,10 @@ public sealed class CreateCivilRecordHandler(
         if (citizen is null)
             return Result<CreateCivilRecordResponse>.Failure("بيانات المواطن غير موجودة");
 
-        // ── STEP 4: بناء بيانات الـ PDF ──────────────────────────────
+        // ── STEP 4: توليد Verification Token ─────────────────────────
+        var verificationToken = verificationTokenService.GenerateToken();
+
+        // ── STEP 5: Build PDF data ────────────────────────────────────
         var now = DateTime.UtcNow;
 
         var pdfData = new CivilRecordPdfData
@@ -57,22 +57,21 @@ public sealed class CreateCivilRecordHandler(
             FatherName = citizen.FatherName,
             LastName = citizen.LastName,
             DateOfBirth = citizen.BirthDate.ToString("dd/MM/yyyy"),
-            PlaceOfBirth = citizen.PlaceOfBirth,
-            MaritalStatus = citizen.MaritalStatus,
             ReferenceNumber = serviceRequest.ReferenceNumber,
             IssueDate = DateOnly.FromDateTime(now).ToString("dd/MM/yyyy"),
             PrintDate = now.ToString("dd/MM/yyyy HH:mm"),
             DocumentSerial = GenerateDocumentSerial(serviceRequest.ReferenceNumber),
-
-            // الحقول nullable — تُستبدل بـ "—" إذا كانت فارغة
-            MotherFullName = citizen.MotherName ?? "—",
+            PlaceOfBirth = citizen.PlaceOfBirth ?? "—",
+            MaritalStatus = citizen.MaritalStatus ?? "—",
+            MotherFullName = citizen.MotherName ?? citizen.MotherName,
             Religion = citizen.Religion ?? "—",
-            Gender = citizen.Gender ?? "—",
+            Gender = citizen.Gender,
             RecordPlace = citizen.RecordPlace ?? "—",
             RecordNumber = citizen.RecordNumber ?? "—",
+            VerificationToken = verificationToken      // ← السطر الناقص
         };
 
-        // ── STEP 5: توليد PDF ─────────────────────────────────────────
+        // ── STEP 6: Generate PDF ──────────────────────────────────────
         string pdfFilePath;
         try
         {
@@ -80,10 +79,11 @@ public sealed class CreateCivilRecordHandler(
         }
         catch (Exception ex)
         {
-            return Result<CreateCivilRecordResponse>.Failure($"فشل إنشاء وثيقة القيد: {ex.Message}");
+            return Result<CreateCivilRecordResponse>
+                .Failure($"فشل إنشاء وثيقة القيد: {ex.Message}");
         }
 
-        // ── STEP 6: حفظ Attachment ────────────────────────────────────
+        // ── STEP 7: Save Attachment مع الـ Token ─────────────────────
         var attachment = new Attachment
         {
             Id = Guid.NewGuid(),
@@ -92,34 +92,32 @@ public sealed class CreateCivilRecordHandler(
             FilePath = pdfFilePath,
             ContentType = "application/pdf",
             FileType = "CivilRecord",
-            FileSizeBytes = new FileInfo(pdfFilePath).Length
+            FileSizeBytes = new FileInfo(pdfFilePath).Length,
+            VerificationToken = verificationToken   // ← السطر الناقص
         };
 
         await context.Attachments.AddAsync(attachment, cancellationToken);
 
-        // ── STEP 7: تحديث Status → Completed ─────────────────────────
+        // ── STEP 8: Update ServiceRequest → Completed ────────────────
         serviceRequest.Status = "Completed";
         serviceRequest.CompletedAt = now;
         serviceRequest.ProcessingNotes = "تم إصدار وثيقة إخراج القيد الفردي بنجاح";
 
-        // ── STEP 8: AuditLog ──────────────────────────────────────────
+        // ── STEP 9: AuditLog ──────────────────────────────────────────
         var auditLog = new RequestAuditLog
         {
             Id = Guid.NewGuid(),
             ServiceRequestId = serviceRequest.Id,
-            OldStatus = serviceRequest.Status,
             NewStatus = "Completed",
             Action = "CivilRecordGenerated",
-            Notes = "تم إصدار وثيقة إخراج القيد الفردي بنجاح",
             CreatedAt = now
         };
 
         await context.RequestAuditLogs.AddAsync(auditLog, cancellationToken);
 
-        // ── STEP 9: حفظ كل شيء دفعة واحدة ──────────────────────────
+        // ── STEP 10: Save everything atomically ──────────────────────
         await context.SaveChangesAsync(cancellationToken);
 
-        // ── STEP 10: الرد ─────────────────────────────────────────────
         return Result<CreateCivilRecordResponse>.Success(new CreateCivilRecordResponse
         {
             ServiceRequestId = serviceRequest.Id,
@@ -130,10 +128,6 @@ public sealed class CreateCivilRecordHandler(
         });
     }
 
-    /// <summary>
-    /// يولّد رقم تسلسلي للوثيقة من رقم المرجع.
-    /// مثال: REQ-2026-000001 → CR-2026-000001
-    /// </summary>
     private static string GenerateDocumentSerial(string referenceNumber)
         => referenceNumber.Replace("REQ-", "CR-");
 }

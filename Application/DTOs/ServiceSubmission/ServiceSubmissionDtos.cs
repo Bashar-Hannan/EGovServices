@@ -5,6 +5,8 @@ public sealed record SubmitServiceRequest
 {
     public required Guid ServiceId { get; init; }
     public required Dictionary<string, object> FormData { get; init; } = [];
+    public Guid? BranchId { get; init; }
+    public Guid? AppointmentSlotId { get; init; }  // ← جديد — مطلوب لخدمات Appointment
 }
 
 public sealed record SubmitServiceResponse

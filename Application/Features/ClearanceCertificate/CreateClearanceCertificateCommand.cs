@@ -26,3 +26,12 @@ public sealed record CreateClearanceCertificateCommand
     /// </summary>
     public required Guid ServiceRequestId { get; init; }
 }
+
+public sealed record CreateClearanceCertificateResponse
+{
+    public required Guid ServiceRequestId { get; init; }
+    public required string ReferenceNumber { get; init; }
+    public required string Status { get; init; }
+    public required string PdfFilePath { get; init; }
+    public required string ResultMessage { get; init; }
+}

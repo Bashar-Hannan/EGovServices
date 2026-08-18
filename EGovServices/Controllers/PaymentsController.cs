@@ -1,39 +1,66 @@
-using EGovServices.Application.Features.Payments;
+using EGovServices.Application.Features.Payments.Commands;
+using EGovServices.Application.Features.Payments.Queries;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EGovServices.API.Controllers;
 
+/// <summary>
+/// نظام الدفع الموحَّد — يعمل لكل أنواع الدفع.
+///
+/// GET  /api/payments/{type}/{referenceNumber}
+/// POST /api/payments/{type}/{itemId}/pay
+///
+/// Types المدعومة:
+///   violation   → مخالفات مرورية (referenceNumber = رقم الهوية أو اللوحة)
+///   electricity → فواتير الكهرباء (referenceNumber = رقم العداد)
+/// </summary>
 [ApiController]
 [Route("api/payments")]
 [Authorize]
 public sealed class PaymentsController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    /// تأكيد دفع رسوم طلب خدمة من المحفظة الإلكترونية.
-    /// كل منطق الخصم يحدث تلقائياً داخل PaymentProcessingBehavior.
+    /// استعلام عن المدفوعات.
     ///
-    /// POST /api/payments/confirm/{requestId}
+    /// GET /api/payments/violation/1234567890
+    /// GET /api/payments/violation/أبج1234
+    /// GET /api/payments/electricity/MTR-001234
     /// </summary>
-    [HttpPost("confirm/{requestId:guid}")]
-    public async Task<IActionResult> Confirm(Guid requestId, CancellationToken cancellationToken)
+    [HttpGet("{type}/{referenceNumber}")]
+    public async Task<IActionResult> GetPayments(
+        string type,
+        string referenceNumber,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await mediator.Send(new ConfirmServicePaymentCommand(requestId), cancellationToken);
+        var result = await mediator.Send(
+            new GetPaymentsQuery(type, referenceNumber),
+            cancellationToken);
 
-            return result.Match(
-                onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
-                onFailure: error => BadRequest(new { success = false, message = error }));
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new { success = false, message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { success = false, message = ex.Message });
-        }
+        return result.Match(
+            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onFailure: error => BadRequest(new { success = false, message = error }));
+    }
+
+    /// <summary>
+    /// دفع عنصر محدد من المحفظة.
+    ///
+    /// POST /api/payments/violation/{violationId}/pay
+    /// POST /api/payments/electricity/{billId}/pay
+    /// </summary>
+    [HttpPost("{type}/{itemId:guid}/pay")]
+    public async Task<IActionResult> Pay(
+        string type,
+        Guid   itemId,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new PayItemCommand(type, itemId),
+            cancellationToken);
+
+        return result.Match(
+            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onFailure: error => BadRequest(new { success = false, message = error }));
     }
 }

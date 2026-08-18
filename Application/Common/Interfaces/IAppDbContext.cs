@@ -3,22 +3,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EGovServices.Application.Common.Interfaces;
 
-/// <summary>
-/// Updated IAppDbContext — added OtpVerifications.
-/// Replace your existing 29_IAppDbContext.cs with this.
-/// </summary>
 public interface IAppDbContext
 {
     DbSet<User> Users { get; }
     DbSet<Citizen> Citizens { get; }
+    DbSet<CitizenPhone> CitizenPhones { get; }
     DbSet<GovernmentEntity> GovernmentEntities { get; }
     DbSet<Branch> Branches { get; }
     DbSet<GovernmentService> GovernmentServices { get; }
     DbSet<ServiceFormField> ServiceFormFields { get; }
     DbSet<ServiceFieldOption> ServiceFieldOptions { get; }
     DbSet<ServiceRequest> ServiceRequests { get; }
-    DbSet<ServiceSlot> ServiceSlots { get; }
-    DbSet<Appointment> Appointments { get; }
+    DbSet<AppointmentSlot> AppointmentSlots { get; }
     DbSet<Attachment> Attachments { get; }
     DbSet<RequestAuditLog> RequestAuditLogs { get; }
     DbSet<Wallet> Wallets { get; }
@@ -26,10 +22,12 @@ public interface IAppDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<FAQ> FAQs { get; }
     DbSet<CriminalRecord> CriminalRecords { get; }
+    DbSet<OtpVerification> OtpVerifications { get; }
+    DbSet<TrafficViolation> TrafficViolations { get; }
+    DbSet<UploadedFile> UploadedFiles { get; }
 
     // ── NEW ──────────────────────────────────────────────────────────
-    DbSet<OtpVerification> OtpVerifications { get; }
-    DbSet<AppointmentSlot> AppointmentSlots { get; }
-    DbSet<CitizenPhone> CitizenPhones { get; }
+    DbSet<ElectricityBill> ElectricityBills { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

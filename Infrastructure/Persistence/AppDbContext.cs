@@ -35,6 +35,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     // ── NEW ──────────────────────────────────────────────────────────
     public DbSet<OtpVerification> OtpVerifications => Set<OtpVerification>();
     public DbSet<AppointmentSlot> AppointmentSlots => Set<AppointmentSlot>();
+    public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
+    public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
+    public DbSet<TrafficViolation> TrafficViolations => Set<TrafficViolation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

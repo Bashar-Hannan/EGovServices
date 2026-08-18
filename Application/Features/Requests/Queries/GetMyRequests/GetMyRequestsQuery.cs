@@ -109,11 +109,11 @@ public sealed record MyRequestDto
     public required string StatusLabel { get; init; }
     public required string StatusCategory { get; init; }
 
-    // ── NEW ──────────────────────────────────────────────────────────
-    /// <summary>نوع الخدمة الخام — Digital (0) أو Appointment (1)</summary>
+    // 👈 الحقل الجديد لسبب الرفض (Nullable)
+    public string? RejectionReason { get; init; }
+
     public required ServiceType ServiceType { get; init; }
 
-    /// <summary>نص وصفي يُعرض مباشرة في الواجهة</summary>
     public string ServiceTypeLabel => ServiceType == ServiceType.Digital
         ? "إلكتروني بالكامل"
         : "يتطلب حضوراً";
@@ -145,16 +145,17 @@ public sealed class GetMyRequestsHandler(IAppDbContext context)
             Status = r.Status,
             StatusLabel = GetStatusLabel(r.Status),
             StatusCategory = GetStatusCategory(r.Status),
-            ServiceType = r.GovernmentService.ServiceType   // ← NEW
-        }).ToList();
 
+            // 👈 تمرير سبب الرفض هنا
+            RejectionReason = r.RejectionReason,
+
+            ServiceType = r.GovernmentService.ServiceType
+        }).ToList();
         return Result<List<MyRequestDto>>.Success(dtos);
     }
 
     private static string GetStatusCategory(string status) => status switch
     {
-        "PendingPayment" => "InProgress",
-        "PendingPaymentPayment" => "InProgress",
         "Processing" => "InProgress",
         "DocumentsUnderReview" => "InProgress",
         "AppointmentConfirmed" => "InProgress",
@@ -167,8 +168,6 @@ public sealed class GetMyRequestsHandler(IAppDbContext context)
 
     private static string GetStatusLabel(string status) => status switch
     {
-        "PendingPayment" => "قيد الانتظار",
-        "PendingPaymentPayment" => "بانتظار الدفع",
         "Processing" => "قيد المعالجة",
         "DocumentsUnderReview" => "قيد مراجعة المستندات",
         "AppointmentConfirmed" => "تم تأكيد الموعد",

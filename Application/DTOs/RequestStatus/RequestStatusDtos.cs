@@ -7,7 +7,8 @@ public sealed record RequestStatusDto(
     string CurrentStatus,
     string CurrentStatusArabic,
     DateTime SubmissionDate,
-    List<StatusHistoryItemDto> History
+    List<StatusHistoryItemDto> History,
+    string? RejectionReason 
 );
 
 public sealed record StatusHistoryItemDto(

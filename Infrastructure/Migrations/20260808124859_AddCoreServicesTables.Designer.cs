@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace EGovServices.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260627121341_new")]
-    partial class @new
+    [Migration("20260808124859_AddCoreServicesTables")]
+    partial class AddCoreServicesTables
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -334,6 +334,72 @@ namespace EGovServices.Infrastructure.Migrations
                         .HasFilter("[IsActive] = 1");
 
                     b.ToTable("CriminalRecords", (string)null);
+                });
+
+            modelBuilder.Entity("EGovServices.Domain.Entities.ElectricityBill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("BillNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("CitizenNationalNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("MeterNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Month")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("Unpaid");
+
+                    b.Property<Guid?>("WalletTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillNumber")
+                        .IsUnique();
+
+                    b.HasIndex("CitizenNationalNumber")
+                        .HasDatabaseName("IX_ElectricityBills_NationalNumber");
+
+                    b.HasIndex("MeterNumber")
+                        .HasDatabaseName("IX_ElectricityBills_MeterNumber");
+
+                    b.HasIndex("WalletTransactionId");
+
+                    b.HasIndex("MeterNumber", "Status")
+                        .HasDatabaseName("IX_ElectricityBills_MeterNumber_Status")
+                        .HasFilter("[Status] = 'Unpaid'");
+
+                    b.ToTable("ElectricityBills", (string)null);
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.FAQ", b =>
@@ -846,6 +912,107 @@ namespace EGovServices.Infrastructure.Migrations
                     b.ToTable("ServiceSlots", (string)null);
                 });
 
+            modelBuilder.Entity("EGovServices.Domain.Entities.TrafficViolation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CitizenNationalNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PlateNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ViolationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ViolationNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ViolationType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("WalletTransactionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WalletTransactionId");
+
+                    b.ToTable("TrafficViolations");
+                });
+
+            modelBuilder.Entity("EGovServices.Domain.Entities.UploadedFile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_UploadedFiles_CreatedAt");
+
+                    b.HasIndex("UploadedByUserId")
+                        .HasDatabaseName("IX_UploadedFiles_UserId");
+
+                    b.ToTable("UploadedFiles", (string)null);
+                });
+
             modelBuilder.Entity("EGovServices.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1082,6 +1249,24 @@ namespace EGovServices.Infrastructure.Migrations
                     b.Navigation("Citizen");
                 });
 
+            modelBuilder.Entity("EGovServices.Domain.Entities.ElectricityBill", b =>
+                {
+                    b.HasOne("EGovServices.Domain.Entities.Citizen", "Citizen")
+                        .WithMany()
+                        .HasForeignKey("CitizenNationalNumber")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EGovServices.Domain.Entities.WalletTransaction", "WalletTransaction")
+                        .WithMany()
+                        .HasForeignKey("WalletTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Citizen");
+
+                    b.Navigation("WalletTransaction");
+                });
+
             modelBuilder.Entity("EGovServices.Domain.Entities.GovernmentService", b =>
                 {
                     b.HasOne("EGovServices.Domain.Entities.GovernmentEntity", "GovernmentEntity")
@@ -1184,6 +1369,26 @@ namespace EGovServices.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("GovernmentService");
+                });
+
+            modelBuilder.Entity("EGovServices.Domain.Entities.TrafficViolation", b =>
+                {
+                    b.HasOne("EGovServices.Domain.Entities.WalletTransaction", "WalletTransaction")
+                        .WithMany()
+                        .HasForeignKey("WalletTransactionId");
+
+                    b.Navigation("WalletTransaction");
+                });
+
+            modelBuilder.Entity("EGovServices.Domain.Entities.UploadedFile", b =>
+                {
+                    b.HasOne("EGovServices.Domain.Entities.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UploadedByUser");
                 });
 
             modelBuilder.Entity("EGovServices.Domain.Entities.User", b =>

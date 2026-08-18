@@ -37,20 +37,20 @@ public class GetRequestStatusHandler
         if (serviceRequest is null)
             return Result<RequestStatusDto>.Failure("الطلب غير موجود");
 
-        // التحقق من أن المواطن يطلع على طلبه فقط — مطابق لنمط الـ JWT في المشروع
         if (serviceRequest.UserId != request.UserId)
             return Result<RequestStatusDto>.Failure("غير مصرح لك بعرض هذا الطلب");
 
         var dto = new RequestStatusDto(
-            ReferenceNumber:     serviceRequest.ReferenceNumber,
-            ServiceName:         serviceRequest.GovernmentService.Name,
-            CurrentStatus:       serviceRequest.Status,
+            ReferenceNumber: serviceRequest.ReferenceNumber,
+            ServiceName: serviceRequest.GovernmentService.Name,
+            CurrentStatus: serviceRequest.Status,
             CurrentStatusArabic: GetArabicStatus(serviceRequest.Status),
-            SubmissionDate:      serviceRequest.SubmissionDate,
-            History:             serviceRequest.AuditLogs.Select(log => new StatusHistoryItemDto(
+            SubmissionDate: serviceRequest.SubmissionDate,
+            RejectionReason: serviceRequest.RejectionReason, // 👈 تمرير سبب الرفض
+            History: serviceRequest.AuditLogs.Select(log => new StatusHistoryItemDto(
                 OldStatus: log.OldStatus,
                 NewStatus: log.NewStatus,
-                Notes:     log.Notes,
+                Notes: log.Notes,
                 UpdatedAt: log.CreatedAt
             )).ToList()
         );

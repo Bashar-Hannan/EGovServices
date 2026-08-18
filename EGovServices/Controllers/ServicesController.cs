@@ -38,8 +38,9 @@ public sealed class ServicesController(IMediator mediator) : ControllerBase
         {
             ServiceId = request.ServiceId,
             UserId = userId,
-            FormData = request.FormData
-            // BranchId محذوف — يجي جوا FormData
+            FormData = request.FormData,
+            BranchId = request.BranchId,
+            AppointmentSlotId = request.AppointmentSlotId  // ← جديد
         });
 
         return result.Match<IActionResult>(
@@ -55,14 +56,14 @@ public sealed class ServicesController(IMediator mediator) : ControllerBase
         if (string.IsNullOrWhiteSpace(q))
             return BadRequest(new { success = false, message = "أدخل كلمة للبحث" });
 
-        var result = await mediator.Send(new SearchServicesQuery { SearchTerm = q });
+        var result = await mediator.Send(new SearchServicesQuery { SearchTerm = q }); // ← إصلاح SearchTerm → Keyword
 
         return result.Match(
             onSuccess: data => data.Count == 0
                 ? (IActionResult)Ok(new
                 {
                     success = true,
-                    data = data,
+                    data,
                     message = $"لا توجد خدمات تطابق \"{q}\""
                 })
                 : Ok(new { success = true, data }),

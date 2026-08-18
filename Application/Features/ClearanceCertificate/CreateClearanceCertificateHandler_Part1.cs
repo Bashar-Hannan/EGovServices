@@ -9,17 +9,14 @@ using Microsoft.EntityFrameworkCore;
 namespace EGovServices.Application.Features.ClearanceCertificate;
 
 /// <summary>
-/// Handler المحدّث — يولّد VerificationToken ويخزّنه في Attachment.
-/// التغيير الوحيد عن النسخة الأصلية هو:
-/// 1. استقبال IVerificationTokenService
-/// 2. توليد Token وتمريره لـ PdfService
-/// 3. حفظه في Attachment
+/// Handler — يمرر كل بيانات Citizen المتاحة للتصميم الجديد (HTML-matched)،
+/// بالإضافة لقائمة السجلات الجنائية كاملة لعرضها بجدول الوثيقة.
 /// </summary>
 public sealed partial class CreateClearanceCertificateHandler(
     IAppDbContext context,
     IPdfService pdfService,
     IHttpContextAccessor httpContextAccessor,
-    IVerificationTokenService verificationTokenService)   // ← NEW
+    IVerificationTokenService verificationTokenService)
     : IRequestHandler<CreateClearanceCertificateCommand,
                       Result<CreateClearanceCertificateResponse>>
 {
@@ -57,19 +54,42 @@ public sealed partial class CreateClearanceCertificateHandler(
 
         var fullName = $"{citizen.FirstName} {citizen.FatherName} {citizen.LastName}";
 
-        // ── NEW: توليد Verification Token ───────────────────────────
         var verificationToken = verificationTokenService.GenerateToken();
 
         var pdfData = new ClearanceCertificatePdfData
         {
+            // هوية أساسية
+            FirstName = citizen.FirstName,
+            FatherName = citizen.FatherName,
+            LastName = citizen.LastName,
+            MotherName = citizen.MotherName,
             FullName = fullName,
             NationalNumber = nationalNumber,
+
+            // بيانات إضافية من Citizen
+            Religion = citizen.Religion,
+            Gender = citizen.Gender,
+            BirthDate = citizen.BirthDate,
+            PlaceOfBirth = citizen.PlaceOfBirth,
+            RecordPlace = citizen.RecordPlace,
+            RecordNumber = citizen.RecordNumber,
+            Address = citizen.Address,
+
+            // نتيجة الفحص
             CheckResult = checkResult,
             HasActiveCrimes = hasActiveCrimes,
+            CriminalRecords = criminalRecords.Select(r => new ClearanceCriminalRecordItem
+            {
+                CrimeDescription = r.CrimeDescription,
+                JudgmentDate = r.JudgmentDate,
+                IsActive = r.IsActive
+            }).ToList(),
+
+            // بيانات الوثيقة
             IssueDate = DateOnly.FromDateTime(DateTime.UtcNow),
             ReferenceNumber = serviceRequest.ReferenceNumber,
             FormDataJson = serviceRequest.FormData,
-            VerificationToken = verificationToken   // ← NEW
+            VerificationToken = verificationToken
         };
 
         string pdfFilePath;
@@ -80,7 +100,6 @@ public sealed partial class CreateClearanceCertificateHandler(
                 .Failure($"فشل إنشاء ملف الشهادة: {ex.Message}");
         }
 
-        // ── NEW: حفظ Token في Attachment ────────────────────────────
         var attachment = new Attachment
         {
             Id = Guid.NewGuid(),
@@ -91,7 +110,7 @@ public sealed partial class CreateClearanceCertificateHandler(
             FileType = "ClearanceCertificate",
             FileSizeBytes = new FileInfo(pdfFilePath).Length,
             VerificationToken = verificationToken,
-            VerificationTokenExpiresAt = null    // شهادة عدم المحكومية لا تنتهي
+            VerificationTokenExpiresAt = null
         };
 
         await context.Attachments.AddAsync(attachment, cancellationToken);

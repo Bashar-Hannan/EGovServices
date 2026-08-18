@@ -1,41 +1,44 @@
 namespace EGovServices.Application.DTOs;
 
 /// <summary>
-/// All data needed to build the PDF certificate.
-/// Passed from Handler → IPdfService.
+/// بيانات توليد شهادة عدم المحكومية — نسخة موسّعة تطابق تصميم HTML الجديد.
+/// كل الحقول الجديدة تُشتق من Citizen entity مباشرة (لا تحتاج مصدر بيانات إضافي).
 /// </summary>
 public sealed record ClearanceCertificatePdfData
 {
-    public required string FullName { get; init; }
+    // ── بيانات الهوية الأساسية ──────────────────────────────────────
+    public required string FirstName { get; init; }
+    public required string FatherName { get; init; }
+    public required string LastName { get; init; }   // النسبة
+    public string? MotherName { get; init; }
+    public required string FullName { get; init; }   // للتوافق مع الاستخدامات القديمة (رسائل، إلخ)
     public required string NationalNumber { get; init; }
-    public required string CheckResult { get; init; }
+
+    // ── بيانات إضافية من Citizen ─────────────────────────────────────
+    public string? Religion { get; init; }
+    public string? Gender { get; init; }
+    public DateOnly? BirthDate { get; init; }
+    public string? PlaceOfBirth { get; init; }
+    public string? RecordPlace { get; init; }
+    public string? RecordNumber { get; init; }
+    public string? Address { get; init; }       // محل الإقامة الحالي
+
+    // ── نتيجة الفحص الجنائي ───────────────────────────────────────────
     public required bool HasActiveCrimes { get; init; }
+    public required string CheckResult { get; init; }
+    public List<ClearanceCriminalRecordItem> CriminalRecords { get; init; } = [];
+
+    // ── بيانات الوثيقة ─────────────────────────────────────────────────
     public required DateOnly IssueDate { get; init; }
     public required string ReferenceNumber { get; init; }
     public string? FormDataJson { get; init; }
-
-    // ── NEW ──────────────────────────────────────────────────────────
-    /// <summary>
-    /// Token التحقق المولَّد من IVerificationTokenService.
-    /// يُحقن في الـ QR Code داخل الـ PDF.
-    /// </summary>
     public required string VerificationToken { get; init; }
 }
 
-/// <summary>
-/// Response returned to the API caller after certificate generation.
-/// </summary>
-public sealed record CreateClearanceCertificateResponse
+/// <summary>سجل واحد ضمن جدول الأحكام القضائية بالوثيقة.</summary>
+public sealed record ClearanceCriminalRecordItem
 {
-    public required Guid ServiceRequestId { get; init; }
-    public required string ReferenceNumber { get; init; }
-
-    /// <summary>Final status of the request after processing</summary>
-    public required string Status { get; init; }
-
-    /// <summary>Path where the PDF was saved on the server</summary>
-    public required string PdfFilePath { get; init; }
-
-    /// <summary>Human-readable result message in Arabic</summary>
-    public required string ResultMessage { get; init; }
+    public required string CrimeDescription { get; init; }
+    public required DateOnly JudgmentDate { get; init; }
+    public required bool IsActive { get; init; }
 }

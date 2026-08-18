@@ -4,13 +4,14 @@ using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.Features.Jobs;
 using EGovServices.Infrastructure.Persistence;
 using EGovServices.Infrastructure.Service;
-using EGovServices.Infrastructure.Service.Email;
 using EGovServices.Infrastructure.Service;
+using EGovServices.Infrastructure.Service.Email;
 using FluentValidation;
 // أضفنا الـ usings الخاصة بـ Hangfire
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Dashboard;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -25,11 +26,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ── 1. Database ───────────────────────────────────────────────────
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
-        connectionString,
-        sql => sql.MigrationsAssembly("EGovServices.Infrastructure")));
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            // هذا هو السطر الذي يحل المشكلة
+            sqlOptions.EnableRetryOnFailure();
+        })
+);
 
 builder.Services.AddScoped<IAppDbContext>(sp =>
     sp.GetRequiredService<AppDbContext>());
@@ -55,7 +60,6 @@ builder.Services.AddMediatR(cfg =>
             .LoginHandler).Assembly);
 
     // Register FluentValidation pipeline behavior
-    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
 
 });
 
@@ -73,9 +77,14 @@ builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IVerificationTokenService, VerificationTokenService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 // ── 6. Controllers + Swagger ──────────────────────────────────────
 builder.Services.AddControllers();
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 5 * 1024 * 1024;
+});
 builder.Services.AddRateLimiter(options =>
 {
     // سياسة خاصة بـ Verification Endpoint
