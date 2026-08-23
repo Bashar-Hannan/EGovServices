@@ -11,6 +11,7 @@
 		<PackageReference Include="MediatR" Version="12.4.1" />
 		<PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.10" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
 	</ItemGroup>
 	<ItemGroup>
 	  <ProjectReference Include="..\Domain\EGovServices.Domain.csproj" />

@@ -1,6 +1,7 @@
 ﻿using EGovServices.API.Services;
 using EGovServices.Application.Common.Behaviors;
 using EGovServices.Application.Common.Interfaces;
+using EGovServices.Application.Features.Assistant.Commands;
 using EGovServices.Application.Features.Jobs;
 using EGovServices.Infrastructure.Persistence;
 using EGovServices.Infrastructure.Service;
@@ -161,6 +162,8 @@ builder.Services.AddCors(o => o.AddPolicy("AllowAll",
     p => p.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 // ─────────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient<ChatWithAssistantHandler>();
+
 var app = builder.Build();
 app.UseStaticFiles();
 // ─────────────────────────────────────────────────────────────────
