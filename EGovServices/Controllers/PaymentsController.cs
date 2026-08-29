@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using EGovServices.Application.Features.Payments.Commands;
 using EGovServices.Application.Features.Payments.Queries;
 using MediatR;
@@ -13,8 +14,10 @@ namespace EGovServices.API.Controllers;
 /// POST /api/payments/{type}/{itemId}/pay
 ///
 /// Types المدعومة:
-///   violation   → مخالفات مرورية (referenceNumber = رقم الهوية أو اللوحة)
+///   violation   → مخالفات مرورية (referenceNumber = رقم المركبة)
+///                 مقيَّدة بمركبات مواطن الجلسة الحالية فقط
 ///   electricity → فواتير الكهرباء (referenceNumber = رقم العداد)
+///                 غير مقيَّدة (يمكن دفع فاتورة أي عداد)
 /// </summary>
 [ApiController]
 [Route("api/payments")]
@@ -24,7 +27,6 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
     /// <summary>
     /// استعلام عن المدفوعات.
     ///
-    /// GET /api/payments/violation/1234567890
     /// GET /api/payments/violation/أبج1234
     /// GET /api/payments/electricity/MTR-001234
     /// </summary>
@@ -34,12 +36,14 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
         string referenceNumber,
         CancellationToken cancellationToken)
     {
+        var nationalNumber = User.FindFirst("NationalNumber")?.Value;
+
         var result = await mediator.Send(
-            new GetPaymentsQuery(type, referenceNumber),
+            new GetPaymentsQuery(type, referenceNumber, nationalNumber),
             cancellationToken);
 
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
@@ -52,7 +56,7 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
     [HttpPost("{type}/{itemId:guid}/pay")]
     public async Task<IActionResult> Pay(
         string type,
-        Guid   itemId,
+        Guid itemId,
         CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
@@ -60,7 +64,7 @@ public sealed class PaymentsController(IMediator mediator) : ControllerBase
             cancellationToken);
 
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 }

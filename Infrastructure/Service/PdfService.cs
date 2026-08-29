@@ -1,12 +1,15 @@
 using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.DTOs;
 using EGovServices.Application.DTOs.CivilRecord;
-using Microsoft.Extensions.Hosting;
+using EGovServices.Application.DTOs.MedicalFile;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using QuestPDF.Drawing;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using static System.Net.Mime.MediaTypeNames;
+
 
 namespace EGovServices.Infrastructure.Service;
 
@@ -385,6 +388,107 @@ public sealed class PdfService : IPdfService
 
                         row.RelativeItem().AlignLeft()
                             .Text($"بيان صادر عن النظام الإلكتروني للشؤون المدنية  |  رقم الطلب: {data.ReferenceNumber}")
+                            .FontSize(7.5f).FontColor(Colors.Grey.Darken2);
+                    });
+            });
+        });
+
+        await Task.Run(() => document.GeneratePdf(fullPath));
+        return fullPath;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // 3. الملف الطبي الإلكتروني — البيانات تأتي من Citizen +
+    //    MedicalRecord مباشرة (لا FormData) — نفس لغة التصميم
+    //    (Qomra، الباترن المشترك، SectionBlock) بدون أي بنية جديدة.
+    // ════════════════════════════════════════════════════════════════
+    public async Task<string> GenerateMedicalFileAsync(MedicalFilePdfData data)
+    {
+        if (!Directory.Exists(_basePath))
+            Directory.CreateDirectory(_basePath);
+
+        var safeRef = data.ReferenceNumber.Replace("-", "_");
+        var fileName = $"medical_{safeRef}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+        var fullPath = Path.Combine(_basePath, fileName);
+
+        var qrBytes = _qrCodeService.GenerateQrCodeBytes(data.VerificationToken);
+        const string Teal = "#042522";
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(0);
+                page.ContentFromRightToLeft();
+                page.DefaultTextStyle(x => x.FontFamily(FontFamily).FontSize(9.5f));
+
+                page.Background().Element(bg =>
+                {
+                    if (_patternBytes is not null)
+                        bg.Image(_patternBytes).FitUnproportionally();
+                });
+
+                page.Content().PaddingHorizontal(40).PaddingTop(30).Column(col =>
+                {
+                    col.Item().PaddingBottom(12).BorderBottom(1).BorderColor(Colors.Grey.Medium)
+                        .PaddingBottom(10).Row(row =>
+                        {
+                            row.RelativeItem().Column(ar =>
+                            {
+                                ar.Item().AlignRight().Text("الجمهورية العربية الســـوريـــة").Bold().FontSize(9.5f);
+                                ar.Item().AlignRight().Text("وزارة الصــــحـــــــــة").FontSize(8.5f);
+                                ar.Item().AlignRight().Text("الإدارة العامة للخدمات الصحية الإلكترونية").FontSize(8.5f);
+                            });
+
+                            row.ConstantItem(140).Column(center =>
+                            {
+                                if (_logoBytes is not null)
+                                    center.Item().AlignCenter().Height(45).Image(_logoBytes).FitArea();
+
+                                center.Item().AlignCenter().PaddingTop(3)
+                                    .Text("الملف الطبي الإلكتروني").Bold().FontSize(13);
+                            });
+
+                            row.RelativeItem().Column(doc =>
+                            {
+                                doc.Item().AlignLeft().Width(48).Height(48).Image(qrBytes);
+                                doc.Item().AlignLeft().Text("للتحقق عبر التطبيق").FontSize(6.5f).FontColor(Colors.Grey.Darken1);
+                                doc.Item().AlignLeft().Text(data.ReferenceNumber).Bold().FontSize(7.5f);
+                                doc.Item().AlignLeft().Text($"تاريخ الإصدار: {data.IssueDate}").FontSize(7.5f).FontColor(Colors.Grey.Darken1);
+                            });
+                        });
+
+                    col.Item().PaddingTop(6).Column(inner =>
+                    {
+                        inner.Spacing(12);
+
+                        inner.Item().Element(c => SectionBlock(c, Teal, "بيانات المواطن", [
+                            ("الاسم الكامل",   data.FullName),
+                            ("الرقم الوطني",   data.NationalNumber),
+                            ("تاريخ الميلاد",  data.BirthDate),
+                            ("الجنس",          data.Gender)
+                        ]));
+
+                        inner.Item().Element(c => SectionBlock(c, Teal, "المعلومات الطبية", [
+                            ("فصيلة الدم",       data.BloodType),
+                            ("الطول (سم)",       $"{data.HeightCm}"),
+                            ("الوزن (كغ)",       $"{data.WeightKg}"),
+                            ("الحساسيات",        data.Allergies),
+                            ("الأمراض المزمنة",  data.ChronicDiseases)
+                        ]));
+                    });
+                });
+
+                page.Footer().PaddingHorizontal(40).PaddingBottom(20).PaddingTop(6)
+                    .BorderTop(1).BorderColor(Colors.Grey.Lighten1).PaddingTop(6)
+                    .Row(row =>
+                    {
+                        row.RelativeItem().Text("وثيقة إلكترونية صادرة عن منصة الخدمات الحكومية")
+                            .FontSize(7.5f).FontColor(Colors.Grey.Darken2);
+
+                        row.RelativeItem().AlignLeft()
+                            .Text($"رقم الطلب: {data.ReferenceNumber}")
                             .FontSize(7.5f).FontColor(Colors.Grey.Darken2);
                     });
             });

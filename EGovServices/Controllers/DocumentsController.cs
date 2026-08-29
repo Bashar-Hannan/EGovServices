@@ -1,6 +1,7 @@
 using EGovServices.Application.Common.Interfaces;
 using EGovServices.Application.Features.CivilRecord;
 using EGovServices.Application.Features.ClearanceCertificate;
+using EGovServices.Application.Features.MedicalFile;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,12 +38,16 @@ public sealed class DocumentsController(IAppDbContext context, IMediator mediato
 
         // إخراج قيد فردي مدني
         [Guid.Parse("F47AC10B-58CC-4372-A567-0E02B2C3D479")] = DocumentKind.CivilRecord,
+
+        // الملف الطبي الإلكتروني (وزارة الصحة)
+        [Guid.Parse("7B2C3D4E-5F6A-4B7C-9D8E-2A3B4C5D6E7F")] = DocumentKind.MedicalFile,
     };
 
     private enum DocumentKind
     {
         ClearanceCertificate,
-        CivilRecord
+        CivilRecord,
+        MedicalFile
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -75,7 +80,8 @@ public sealed class DocumentsController(IAppDbContext context, IMediator mediato
         return kind switch
         {
             DocumentKind.ClearanceCertificate => await ProcessClearance(requestId),
-            DocumentKind.CivilRecord          => await ProcessCivilRecord(requestId),
+            DocumentKind.CivilRecord => await ProcessCivilRecord(requestId),
+            DocumentKind.MedicalFile => await ProcessMedicalFile(requestId),
             _ => BadRequest(new { success = false, message = "نوع وثيقة غير معروف" })
         };
     }
@@ -86,7 +92,7 @@ public sealed class DocumentsController(IAppDbContext context, IMediator mediato
             new CreateClearanceCertificateCommand { ServiceRequestId = requestId });
 
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
@@ -96,7 +102,17 @@ public sealed class DocumentsController(IAppDbContext context, IMediator mediato
             new CreateCivilRecordCommand { ServiceRequestId = requestId });
 
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
+            onFailure: error => BadRequest(new { success = false, message = error }));
+    }
+
+    private async Task<IActionResult> ProcessMedicalFile(Guid requestId)
+    {
+        var result = await mediator.Send(
+            new CreateMedicalFileCommand { ServiceRequestId = requestId });
+
+        return result.Match(
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
@@ -141,8 +157,8 @@ public sealed class DocumentsController(IAppDbContext context, IMediator mediato
         var fileBytes = await System.IO.File.ReadAllBytesAsync(attachment.FilePath, cancellationToken);
 
         return File(
-            fileContents:     fileBytes,
-            contentType:      attachment.ContentType,
+            fileContents: fileBytes,
+            contentType: attachment.ContentType,
             fileDownloadName: attachment.FileName);
     }
 }

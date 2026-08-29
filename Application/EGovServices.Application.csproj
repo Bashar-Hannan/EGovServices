@@ -16,4 +16,8 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\Domain\EGovServices.Domain.csproj" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Features\TrafficFines\Commands\" />
+	  <Folder Include="Features\TrafficFines\Queries\" />
+	</ItemGroup>
 </Project>

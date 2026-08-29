@@ -26,6 +26,8 @@ public class GovernmentService
     // ✨ ميزة جديدة: نوع الخدمة (رقمية أو حضورية)
     public  ServiceType ServiceType { get; set; }
 
+    public string? PaymentType { get; set; }
+
     // ── العلاقات (Navigation Properties) ─────────────────────────────────
 
     // الجهة الحكومية التابعة لها الخدمة

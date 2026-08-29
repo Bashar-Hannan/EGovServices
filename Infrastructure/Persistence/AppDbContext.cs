@@ -3,6 +3,7 @@ using EGovServices.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
 
 namespace EGovServices.Infrastructure.Persistence;
 
@@ -38,6 +39,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
     public DbSet<TrafficViolation> TrafficViolations => Set<TrafficViolation>();
+    public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

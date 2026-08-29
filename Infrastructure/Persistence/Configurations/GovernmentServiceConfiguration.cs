@@ -17,6 +17,10 @@ public class GovernmentServiceConfiguration : IEntityTypeConfiguration<Governmen
         builder.Property(x => x.Requirements).HasMaxLength(2000).IsUnicode(true).IsRequired(false);
         builder.Property(x => x.ServiceFee).IsRequired().HasColumnType("decimal(18,2)");
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.PaymentType)
+       .HasMaxLength(20)
+       .IsUnicode(false)
+       .IsRequired(false);
 
         builder.HasOne(x => x.GovernmentEntity)
             .WithMany(x => x.GovernmentServices)

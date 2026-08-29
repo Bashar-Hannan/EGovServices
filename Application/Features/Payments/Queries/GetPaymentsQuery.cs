@@ -9,12 +9,15 @@ namespace EGovServices.Application.Features.Payments.Queries;
 // ── Query ─────────────────────────────────────────────────────────────────────
 /// <summary>
 /// استعلام موحَّد عن أي نوع دفع.
-/// type: "violation" → يستعلم TrafficViolations برقم الهوية أو اللوحة
-/// type: "electricity" → يستعلم ElectricityBills برقم العداد
+/// type: "violation"   → يستعلم TrafficViolations برقم المركبة — مقيَّد
+///                        بمواطن الجلسة الحالية فقط (RequestingNationalNumber)
+/// type: "electricity" → يستعلم ElectricityBills برقم العداد — غير مقيَّد
+///                        (يمكن دفع فاتورة لأي عداد، مثل عداد أحد الأقارب)
 /// </summary>
 public sealed record GetPaymentsQuery(
-    string Type,             // "violation" | "electricity"
-    string ReferenceNumber   // رقم الهوية/اللوحة للمخالفات | رقم العداد للكهرباء
+    string Type,                       // "violation" | "electricity"
+    string ReferenceNumber,            // رقم المركبة للمخالفات | رقم العداد للكهرباء
+    string? RequestingNationalNumber   // من JWT — يُستخدم فقط لتقييد المخالفات
 ) : IRequest<Result<GetPaymentsResponse>>;
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -30,29 +33,33 @@ public sealed class GetPaymentsHandler(IAppDbContext context)
 
         return request.Type.ToLower() switch
         {
-            //"violation"   => await GetViolations(request.ReferenceNumber, cancellationToken),
+            "violation" => await GetViolations(request.ReferenceNumber, request.RequestingNationalNumber, cancellationToken),
             "electricity" => await GetElectricityBills(request.ReferenceNumber, cancellationToken),
-            _             => Result<GetPaymentsResponse>.Failure(
+            _ => Result<GetPaymentsResponse>.Failure(
                                $"نوع الدفع '{request.Type}' غير مدعوم. الأنواع المتاحة: violation, electricity")
         };
     }
 
-    // ── المخالفات المرورية ────────────────────────────────────────────
+    // ── المخالفات المرورية — مقيَّدة بمواطن الجلسة الحالية فقط ──────────
     private async Task<Result<GetPaymentsResponse>> GetViolations(
-        string referenceNumber, CancellationToken ct)
+        string plateNumber, string? requestingNationalNumber, CancellationToken ct)
     {
-        // يقبل رقم الهوية أو رقم اللوحة
+        if (string.IsNullOrWhiteSpace(requestingNationalNumber))
+            return Result<GetPaymentsResponse>.Failure("تعذّر التحقق من هوية المستخدم");
+
+        // ⚠️ تحقق ملكية إلزامي: المركبة يجب أن تكون مسجَّلة باسم صاحب
+        // الجلسة الحالية — أي مواطن ما بيقدر يشوف مخالفات مركبة غير مركبته
         var violations = await context.TrafficViolations
             .AsNoTracking()
-            .Where(v => v.CitizenNationalNumber == referenceNumber ||
-                        v.PlateNumber == referenceNumber)
+            .Where(v => v.PlateNumber == plateNumber &&
+                        v.CitizenNationalNumber == requestingNationalNumber)
             .OrderBy(v => v.Status == "Open" ? 0 : 1)
             .ThenByDescending(v => v.ViolationDate)
             .ToListAsync(ct);
 
         if (violations.Count == 0)
             return Result<GetPaymentsResponse>.Failure(
-                "لا توجد مخالفات مسجلة بهذه البيانات");
+                "لا توجد مخالفات مسجلة على هذه المركبة باسمك");
 
         var items = violations.Select(v => new PaymentItemDto(
             Id: v.Id,
@@ -76,7 +83,7 @@ public sealed class GetPaymentsHandler(IAppDbContext context)
         ));
     }
 
-    // ── فواتير الكهرباء ───────────────────────────────────────────────
+    // ── فواتير الكهرباء — غير مقيَّدة عمداً (دفع فاتورة عداد لأي شخص) ──
     private async Task<Result<GetPaymentsResponse>> GetElectricityBills(
         string meterNumber, CancellationToken ct)
     {
@@ -91,23 +98,23 @@ public sealed class GetPaymentsHandler(IAppDbContext context)
                 "لا توجد فواتير مسجلة لهذا العداد");
 
         var items = bills.Select(b => new PaymentItemDto(
-            Id:              b.Id,
+            Id: b.Id,
             ReferenceNumber: b.BillNumber,
-            Description:     $"فاتورة كهرباء — {b.Month}",
-            Amount:          b.Amount,
-            Status:          b.Status,
-            StatusLabel:     b.Status == "Unpaid" ? "غير مدفوعة" : "مدفوعة",
-            Date:            b.Month
+            Description: $"فاتورة كهرباء — {b.Month}",
+            Amount: b.Amount,
+            Status: b.Status,
+            StatusLabel: b.Status == "Unpaid" ? "غير مدفوعة" : "مدفوعة",
+            Date: b.Month
         )).ToList();
 
         var unpaid = bills.Where(b => b.Status == "Unpaid").ToList();
 
         return Result<GetPaymentsResponse>.Success(new GetPaymentsResponse(
-            Type:             "electricity",
-            TypeLabel:        "فواتير الكهرباء",
-            Items:            items,
-            TotalCount:       bills.Count,
-            UnpaidCount:      unpaid.Count,
+            Type: "electricity",
+            TypeLabel: "فواتير الكهرباء",
+            Items: items,
+            TotalCount: bills.Count,
+            UnpaidCount: unpaid.Count,
             TotalUnpaidAmount: unpaid.Sum(b => b.Amount)
         ));
     }

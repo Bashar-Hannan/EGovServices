@@ -28,6 +28,7 @@ public interface IAppDbContext
 
     // ── NEW ──────────────────────────────────────────────────────────
     DbSet<ElectricityBill> ElectricityBills { get; }
+    DbSet<MedicalRecord> MedicalRecords { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

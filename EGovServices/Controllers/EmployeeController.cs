@@ -1,10 +1,11 @@
-using System.Security.Claims;
+using EGovServices.Application.Features.Admin.Queries.GetAdminRequestDetails;
 using EGovServices.Application.Features.Admin.Queries.GetAdminRequests;
 using EGovServices.Application.Features.Employee.Commands.AddProcessingNote;
 using EGovServices.Application.Features.Employee.Commands.UpdateRequestStatus;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EGovServices.API.Controllers;
 
@@ -13,24 +14,24 @@ namespace EGovServices.API.Controllers;
 [Authorize(Roles = "Employee,Admin")]   // Admin يملك صلاحيات الموظف أيضاً
 public sealed class EmployeeController(IMediator mediator) : ControllerBase
 {
-    /// <summary>الطلبات المعلقة وقيد المراجعة</summary>
+    /// <summary>
+    /// الطلبات — بدون تحديد status يعرض كل الحالات (نفس سلوك الأدمن).
+    /// لتضييق النظرة، الموظف يمرر ?status=Submitted صراحة.
+    /// </summary>
     [HttpGet("requests")]
     public async Task<IActionResult> GetPendingPaymentRequests(
         [FromQuery] string? status,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
-        // الموظف يرى فقط PendingPayment و UnderReview افتراضياً
-        var effectiveStatus = status ?? "PendingPayment";
-
         var result = await mediator.Send(new GetAdminRequestsQuery
         {
-            Status   = effectiveStatus,
-            Page     = page,
+            Status = status,   // null = كل الحالات — بدل "PendingPayment" الثابتة القديمة
+            Page = page,
             PageSize = pageSize
         });
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
@@ -42,14 +43,14 @@ public sealed class EmployeeController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(new UpdateRequestStatusCommand
         {
-            RequestId       = id,
+            RequestId = id,
             ChangedByUserId = userId,
-            NewStatus       = body.NewStatus,
+            NewStatus = body.NewStatus,
             RejectionReason = body.RejectionReason,
             ProcessingNotes = body.ProcessingNotes
         });
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
@@ -60,11 +61,22 @@ public sealed class EmployeeController(IMediator mediator) : ControllerBase
         var result = await mediator.Send(new AddProcessingNoteCommand
         {
             RequestId = id,
-            Note      = body.Note
+            Note = body.Note
         });
         return result.Match(
-            onSuccess: ()    => (IActionResult)Ok(new { success = true, message = "تمت إضافة الملاحظة" }),
+            onSuccess: () => (IActionResult)Ok(new { success = true, message = "تمت إضافة الملاحظة" }),
             onFailure: error => BadRequest(new { success = false, message = error }));
+    }
+    // EmployeeController.cs — أضف هذا
+
+    /// <summary>تفاصيل طلب واحد — يشمل FormData والمرفقات، ليقيّمه الموظف قبل القرار</summary>
+    [HttpGet("requests/{id:guid}")]
+    public async Task<IActionResult> GetRequestDetails(Guid id)
+    {
+        var result = await mediator.Send(new GetAdminRequestDetailsQuery(id));
+        return result.Match<IActionResult>(
+            onSuccess: data => Ok(new { success = true, data }),
+            onFailure: error => NotFound(new { success = false, message = error }));
     }
 }
 

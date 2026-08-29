@@ -42,6 +42,7 @@ public sealed record MinistryServiceDto
     // فقط تُملأ عندما ServiceType = "Appointment"
     // عند Digital تكون null مباشرة — الـ Frontend لا يرى الحقل أصلاً
     public List<BranchOptionDto>? Branches { get; init; }
+    public string? PaymentType { get; init; }
 }
 
 public sealed record BranchOptionDto
@@ -85,6 +86,7 @@ public sealed class GetMinistryServicesHandler
                 ServiceType = s.ServiceType.ToString(),
                 ServiceFee = s.ServiceFee,
                 Requirements = s.Requirements,
+                PaymentType = s.PaymentType,
 
                 // Appointment → يُرجع الفروع | Digital → null
                 Branches = s.ServiceType == ServiceType.Appointment

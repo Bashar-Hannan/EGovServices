@@ -12,7 +12,7 @@ namespace EGovServices.Application.Features.Payments.Commands;
 // ── Command ───────────────────────────────────────────────────────────────────
 public sealed record PayItemCommand(
     string Type,   // "violation" | "electricity"
-    Guid   ItemId  // Id المخالفة أو الفاتورة
+    Guid ItemId  // Id المخالفة أو الفاتورة
 ) : IRequest<Result<PayItemResponse>>;
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ public sealed class PayItemHandler(
         CancellationToken cancellationToken)
     {
         // ── استخراج هوية المستخدم من JWT ──────────────────────────────
-        var userIdClaim    = httpContextAccessor.HttpContext?.User
+        var userIdClaim = httpContextAccessor.HttpContext?.User
             .FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var nationalNumber = httpContextAccessor.HttpContext?.User
             .FindFirst("NationalNumber")?.Value;
@@ -39,14 +39,14 @@ public sealed class PayItemHandler(
 
         return request.Type.ToLower() switch
         {
-            //"violation"   => await PayViolation(request.ItemId, userId, nationalNumber, cancellationToken),
-            "electricity" => await PayElectricityBill(request.ItemId, userId, nationalNumber, cancellationToken),
-            _             => Result<PayItemResponse>.Failure(
+            "violation" => await PayViolation(request.ItemId, userId, nationalNumber, cancellationToken),
+            "electricity" => await PayElectricityBill(request.ItemId, userId, cancellationToken),
+            _ => Result<PayItemResponse>.Failure(
                                $"نوع الدفع '{request.Type}' غير مدعوم")
         };
     }
 
-    // ── دفع مخالفة مرورية ────────────────────────────────────────────
+    // ── دفع مخالفة مرورية — مقيَّد بمركبات مواطن الجلسة الحالية ────────
     private async Task<Result<PayItemResponse>> PayViolation(
         Guid violationId, Guid userId, string nationalNumber,
         CancellationToken ct)
@@ -60,6 +60,7 @@ public sealed class PayItemHandler(
         if (violation.Status == "Paid")
             return Result<PayItemResponse>.Failure("هذه المخالفة مدفوعة مسبقاً");
 
+        // تحقق ملكية إلزامي — المخالفة لازم تخص مركبة مسجلة باسم المستخدم
         if (violation.CitizenNationalNumber != nationalNumber)
             return Result<PayItemResponse>.Failure("غير مصرح لك بدفع هذه المخالفة");
 
@@ -110,9 +111,9 @@ public sealed class PayItemHandler(
         ));
     }
 
-    // ── دفع فاتورة كهرباء ────────────────────────────────────────────
+    // ── دفع فاتورة كهرباء — غير مقيَّد عمداً (دفع فاتورة أي عداد) ──────
     private async Task<Result<PayItemResponse>> PayElectricityBill(
-        Guid billId, Guid userId, string nationalNumber,
+        Guid billId, Guid userId,
         CancellationToken ct)
     {
         var bill = await context.ElectricityBills
@@ -124,8 +125,8 @@ public sealed class PayItemHandler(
         if (bill.Status == "Paid")
             return Result<PayItemResponse>.Failure("هذه الفاتورة مدفوعة مسبقاً");
 
-        if (bill.CitizenNationalNumber != nationalNumber)
-            return Result<PayItemResponse>.Failure("غير مصرح لك بدفع هذه الفاتورة");
+        // ← لا يوجد تحقق ملكية هنا عمداً — يمكن لأي مستخدم دفع فاتورة
+        //   أي عداد (مثل دفع فاتورة عن أحد الأقارب)
 
         var wallet = await GetAndValidateWallet(userId, bill.Amount, ct);
         if (wallet is null)
@@ -137,41 +138,41 @@ public sealed class PayItemHandler(
 
         var transaction = new WalletTransaction
         {
-            Id              = Guid.NewGuid(),
-            WalletId        = wallet.Id,
-            Amount          = bill.Amount,
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            Amount = bill.Amount,
             TransactionType = "ElectricityPayment",
-            Description     = $"دفع فاتورة كهرباء — {bill.Month} — رقم: {bill.BillNumber}",
-            ReferenceId     = bill.BillNumber,
+            Description = $"دفع فاتورة كهرباء — {bill.Month} — رقم: {bill.BillNumber}",
+            ReferenceId = bill.BillNumber,
             ServiceRequestId = null,
-            CreatedAt       = now
+            CreatedAt = now
         };
 
         await context.WalletTransactions.AddAsync(transaction, ct);
 
-        bill.Status              = "Paid";
-        bill.PaidAt              = now;
+        bill.Status = "Paid";
+        bill.PaidAt = now;
         bill.WalletTransactionId = transaction.Id;
 
         await context.Notifications.AddAsync(new Notification
         {
-            Id               = Guid.NewGuid(),
-            UserId           = userId,
-            Title            = "تم دفع فاتورة الكهرباء",
-            Message          = $"تم خصم {bill.Amount:F2} ريال لقاء فاتورة كهرباء {bill.Month}. الرصيد المتبقي: {wallet.Balance:F2} ريال.",
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Title = "تم دفع فاتورة الكهرباء",
+            Message = $"تم خصم {bill.Amount:F2} ريال لقاء فاتورة كهرباء {bill.Month}. الرصيد المتبقي: {wallet.Balance:F2} ريال.",
             NotificationType = "Success",
-            IsRead           = false,
-            CreatedAt        = now
+            IsRead = false,
+            CreatedAt = now
         }, ct);
 
         await context.SaveChangesAsync(ct);
 
         return Result<PayItemResponse>.Success(new PayItemResponse(
-            Type:               "electricity",
-            ReferenceNumber:    bill.BillNumber,
-            AmountPaid:         bill.Amount,
+            Type: "electricity",
+            ReferenceNumber: bill.BillNumber,
+            AmountPaid: bill.Amount,
             WalletBalanceAfter: wallet.Balance,
-            Message:            $"تم دفع فاتورة الكهرباء بنجاح. تم خصم {bill.Amount:F2} ريال."
+            Message: $"تم دفع فاتورة الكهرباء بنجاح. تم خصم {bill.Amount:F2} ريال."
         ));
     }
 

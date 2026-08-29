@@ -1,5 +1,6 @@
 using EGovServices.Application.DTOs;
 using EGovServices.Application.DTOs.CivilRecord;
+using EGovServices.Application.DTOs.MedicalFile;
 
 namespace EGovServices.Application.Common.Interfaces;
 
@@ -20,4 +21,9 @@ public interface IPdfService
     /// ������ HTML Template + PuppeteerSharp �������.
     /// </summary>
     Task<string> GenerateCivilRecordAsync(CivilRecordPdfData data);
+
+    /// <summary>
+    /// يولّد ملف PDF للملف الطبي الإلكتروني (خدمة وزارة الصحة).
+    /// </summary>
+    Task<string> GenerateMedicalFileAsync(MedicalFilePdfData data);
 }

@@ -106,6 +106,12 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
         // ── 5. خصم الرسوم ─────────────────────────────────────────────
         wallet.Balance -= service.ServiceFee;
 
+        // معرّف الطلب يُولَّد هنا مبكرًا (بدل الخطوة 9) حتى نتمكن من
+        // ربط معاملة الدفع بالطلب مباشرة عبر ServiceRequestId — بدون
+        // هذا الربط، عملية الاسترداد التلقائي عند الإلغاء لن تعمل أبداً
+        // لأنها تبحث عن المعاملة عبر ServiceRequestId.
+        var serviceRequestId = Guid.NewGuid();
+
         // ── 6. تسجيل معاملة المحفظة ───────────────────────────────────
         await context.WalletTransactions.AddAsync(new WalletTransaction
         {
@@ -114,7 +120,8 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
             Amount = service.ServiceFee,
             TransactionType = "ServiceFeePayment",
             Description = $"دفع رسوم خدمة {service.Name}",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            ServiceRequestId = serviceRequestId
         }, cancellationToken);
 
         // ── 7. حجز المقعد ─────────────────────────────────────────────
@@ -131,7 +138,7 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
 
         var serviceRequest = new ServiceRequest
         {
-            Id = Guid.NewGuid(),
+            Id = serviceRequestId,
             UserId = request.UserId,
             GovernmentServiceId = request.ServiceId,
             ReferenceNumber = referenceNumber,
