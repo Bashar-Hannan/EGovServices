@@ -13,88 +13,111 @@ public sealed record GetMinistryServicesQuery : IRequest<Result<List<MinistrySer
 }
 
 // ─── DTO ──────────────────────────────────────────────────────────────────────
-//public sealed record MinistryServiceDto
-//{
-//    public required Guid        Id          { get; init; }
-//    public required string      Name        { get; init; }
-//    public required string      Description { get; init; }
-//    public required string      Requirements { get; init; }
-//    public required decimal     ServiceFee  { get; init; }
-//    public required ServiceType ServiceType { get; init; }  // Digital | Appointment
-
-//    /// <summary>
-//    /// نص وصفي للنوع — يُعرض مباشرةً في الواجهة
-//    /// "إلكتروني بالكامل" أو "يتطلب حضوراً"
-//    /// </summary>
-//    public string ServiceTypeLabel => ServiceType == ServiceType.Digital
-//        ? "إلكتروني بالكامل"
-//        : "يتطلب حضوراً";
-//}
 public sealed record MinistryServiceDto
 {
     public required Guid Id { get; init; }
     public required string Name { get; init; }
     public required string Description { get; init; }
-    public required string ServiceType { get; init; }
+    public required string Requirements { get; init; }
     public required decimal ServiceFee { get; init; }
-    public string? Requirements { get; init; }
+    public required ServiceType ServiceType { get; init; }  // Digital | Appointment
 
-    // فقط تُملأ عندما ServiceType = "Appointment"
-    // عند Digital تكون null مباشرة — الـ Frontend لا يرى الحقل أصلاً
-    public List<BranchOptionDto>? Branches { get; init; }
+    /// <summary>
+    /// نص وصفي لنوع الخدمة. للخدمات المرتبطة بنظام الدفع الموحَّد
+    /// (PaymentType != null) يُعرض نص خاص بالدفع بدل "إلكتروني بالكامل"
+    /// أو "يتطلب حضوراً" — لأن هذين الوصفين مضللان لخدمة دفع فواتير.
+    /// </summary>
+    public required string ServiceTypeLabel { get; init; }
+
+    /// <summary>
+    /// يُستخدم فقط للخدمات المرتبطة بنظام الدفع الموحَّد
+    /// (المخالفات المرورية، فواتير الكهرباء). الفرونت يستخدم هذه القيمة
+    /// مباشرةً لبناء GET /api/payments/{paymentType}/{referenceNumber}
+    /// null لأي خدمة أخرى لا علاقة لها بنظام الدفع.
+    /// </summary>
     public string? PaymentType { get; init; }
-}
 
-public sealed record BranchOptionDto
-{
-    public required Guid Id { get; init; }
-    public required string Name { get; init; }
-    public required string Address { get; init; }
+    /// <summary>نص عربي واضح يُعرض للمستخدم بدل القيمة التقنية.</summary>
+    public string? PaymentTypeLabel { get; init; }
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
-
-// Application/Features/Ministries/GetMinistryServicesQuery.cs
-
-public sealed class GetMinistryServicesHandler
+public sealed class GetMinistryServicesHandler(IAppDbContext context)
     : IRequestHandler<GetMinistryServicesQuery, Result<List<MinistryServiceDto>>>
 {
-    private readonly IAppDbContext _context;
-    public GetMinistryServicesHandler(IAppDbContext context) => _context = context;
-
     public async Task<Result<List<MinistryServiceDto>>> Handle(
         GetMinistryServicesQuery request, CancellationToken cancellationToken)
     {
+        var ministryExists = await context.GovernmentEntities
+            .AsNoTracking()
+            .AnyAsync(e => e.Id == request.MinistryId && e.IsActive, cancellationToken);
 
-        var branches = await _context.Branches
-            .Where(b => b.GovernmentEntityId == request.MinistryId && b.IsActive)
-            .Select(b => new BranchOptionDto
+        if (!ministryExists)
+            return Result<List<MinistryServiceDto>>.Failure("الوزارة غير موجودة");
+
+        var rawServices = await context.GovernmentServices
+            .AsNoTracking()
+            .Where(s => s.GovernmentEntityId == request.MinistryId && s.IsActive)
+            .OrderBy(s => s.Name)
+            .Select(s => new
             {
-                Id = b.Id,
-                Name = b.Name,
-                Address = b.Address
+                s.Id,
+                s.Name,
+                s.Description,
+                s.Requirements,
+                s.ServiceFee,
+                s.ServiceType
             })
             .ToListAsync(cancellationToken);
 
-        var services = await _context.GovernmentServices
-            .Where(s => s.GovernmentEntityId == request.MinistryId && s.IsActive)
-            .Select(s => new MinistryServiceDto
+        var services = rawServices.Select(s =>
+        {
+            var (paymentType, paymentTypeLabel) = DeterminePaymentType(s.Name);
+
+            return new MinistryServiceDto
             {
                 Id = s.Id,
                 Name = s.Name,
                 Description = s.Description,
-                ServiceType = s.ServiceType.ToString(),
-                ServiceFee = s.ServiceFee,
                 Requirements = s.Requirements,
-                PaymentType = s.PaymentType,
-
-                // Appointment → يُرجع الفروع | Digital → null
-                Branches = s.ServiceType == ServiceType.Appointment
-                    ? branches
-                    : null
-            })
-            .ToListAsync(cancellationToken);
+                ServiceFee = s.ServiceFee,
+                ServiceType = s.ServiceType,
+                ServiceTypeLabel = BuildServiceTypeLabel(s.ServiceType, paymentType),
+                PaymentType = paymentType,
+                PaymentTypeLabel = paymentTypeLabel
+            };
+        }).ToList();
 
         return Result<List<MinistryServiceDto>>.Success(services);
+    }
+
+    /// <summary>
+    /// يحدد نوع الدفع بناءً على اسم الخدمة مباشرةً. أضف حالة جديدة هنا
+    /// عند إضافة نوع دفع مستقبلي — وحدّث نفس الدالة في الملفين الآخرين
+    /// (SearchServicesQuery, GetServiceFormSchemaHandler).
+    /// </summary>
+    private static (string? type, string? label) DeterminePaymentType(string serviceName)
+    {
+        if (serviceName.Contains("مخالف"))
+            return ("violation", "المخالفات المرورية");
+
+        if (serviceName.Contains("كهرباء"))
+            return ("electricity", "فواتير الكهرباء");
+
+        return (null, null);
+    }
+
+    /// <summary>
+    /// خدمات الدفع تحصل على تسمية خاصة بها بدل Digital/Appointment
+    /// العادية، لأن "يتطلب حضوراً" مضلل لخدمة دفع فاتورة إلكترونياً.
+    /// </summary>
+    private static string BuildServiceTypeLabel(ServiceType serviceType, string? paymentType)
+    {
+        if (paymentType is not null)
+            return "خدمة دفع إلكتروني";
+
+        return serviceType == ServiceType.Digital
+            ? "إلكتروني بالكامل"
+            : "يتطلب حضوراً";
     }
 }

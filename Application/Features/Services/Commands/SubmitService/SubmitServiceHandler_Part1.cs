@@ -100,8 +100,8 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
         if (wallet.Balance < service.ServiceFee)
             return Result<SubmitServiceResponse>.Failure(
                 $"رصيد المحفظة غير كافٍ. " +
-                $"الرصيد الحالي: {wallet.Balance:F2} ليرة، " +
-                $"رسوم الخدمة: {service.ServiceFee:F2} ليرة");
+                $"الرصيد الحالي: {wallet.Balance:F2} ليرة سورية، " +
+                $"رسوم الخدمة: {service.ServiceFee:F2} ليرة سورية");
 
         // ── 5. خصم الرسوم ─────────────────────────────────────────────
         wallet.Balance -= service.ServiceFee;
@@ -177,8 +177,8 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
             UserId = request.UserId,
             Title = $"تم تقديم طلب {service.Name} بنجاح",
             Message = service.ServiceType == ServiceType.Digital
-                ? $"تم تقديم طلبك وخصم {service.ServiceFee:F2} ليرة — جارٍ المعالجة"
-                : $"تم تقديم طلبك وخصم {service.ServiceFee:F2} ليرة" +
+                ? $"تم تقديم طلبك وخصم {service.ServiceFee:F2} ليرة سورية — جارٍ المعالجة"
+                : $"تم تقديم طلبك وخصم {service.ServiceFee:F2} ليرة سورية" +
                   $" — موعدك: {slot!.SlotDate:dd/MM/yyyy} الساعة {slot.StartTime:HH:mm}",
             NotificationType = "Success",
             IsRead = false,
@@ -190,8 +190,8 @@ public sealed partial class SubmitServiceHandler(IAppDbContext context)
 
         // ── 13. بناء الرد ─────────────────────────────────────────────
         var message = service.ServiceType == ServiceType.Digital
-            ? $"تم استلام طلبك بنجاح ودفع الرسوم ({service.ServiceFee:F2} ليرة). رقم المرجع: {referenceNumber}"
-            : $"تم استلام طلبك بنجاح ودفع الرسوم ({service.ServiceFee:F2} ليرة). " +
+            ? $"تم استلام طلبك بنجاح ودفع الرسوم ({service.ServiceFee:F2} ليرة سورية). رقم المرجع: {referenceNumber}"
+            : $"تم استلام طلبك بنجاح ودفع الرسوم ({service.ServiceFee:F2} ليرة سورية). " +
               $"موعدك: {slot!.SlotDate:dd/MM/yyyy} الساعة {slot.StartTime:HH:mm}. " +
               $"رقم المرجع: {referenceNumber}";
 

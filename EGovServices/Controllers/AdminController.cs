@@ -1,10 +1,13 @@
+using EGovServices.Application.Features.Admin.Commands.AddCitizen;
 using EGovServices.Application.Features.Admin.Commands.ToggleUserStatus;
+using EGovServices.Application.Features.Admin.Queries;
 using EGovServices.Application.Features.Admin.Queries.GetAdminRequestDetails;
 using EGovServices.Application.Features.Admin.Queries.GetAdminRequests;
 using EGovServices.Application.Features.Admin.Queries.GetAdminUsers;
 using EGovServices.Application.Features.Admin.Queries.GetDashboardStats;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EGovServices.API.Controllers;
@@ -87,4 +90,31 @@ public sealed class AdminController(IMediator mediator) : ControllerBase
             onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
+
+[HttpPost("citizens")]
+public async Task<IActionResult> AddCitizen([FromBody] AddCitizenCommand command)
+{
+    var result = await mediator.Send(command);
+    return result.Match<IActionResult>(
+        onSuccess: data => Ok(new { success = true, data }),
+        onFailure: error => BadRequest(new { success = false, message = error }));
+}
+
+[HttpGet("citizens")]
+public async Task<IActionResult> GetCitizens()
+{
+    var result = await mediator.Send(new GetCitizensQuery());
+    return result.Match<IActionResult>(
+        onSuccess: data => Ok(new { success = true, data }),
+        onFailure: error => BadRequest(new { success = false, message = error }));
+}
+
+[HttpGet("citizens/{nationalNumber}")]
+public async Task<IActionResult> GetCitizen(string nationalNumber)
+{
+    var result = await mediator.Send(new GetCitizenQuery(nationalNumber));
+    return result.Match<IActionResult>(
+        onSuccess: data => Ok(new { success = true, data }),
+        onFailure: error => NotFound(new { success = false, message = error }));
+}
 }

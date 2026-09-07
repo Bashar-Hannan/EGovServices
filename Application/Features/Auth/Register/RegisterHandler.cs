@@ -45,6 +45,14 @@ public sealed class RegisterHandler(
             return Result<RegisterResponse>.Failure(
                 "رقم الهوية الوطنية غير موجود في سجلات الدولة");
 
+        // ── 1.b. Email Match Check — البريد يجب أن يطابق السجلات المدنية ──
+        // يمنع أي شخص من تسجيل حساب باسم مواطن آخر ببريد إلكتروني مختلف
+        // عن البريد المسجَّل أصلاً في Citizens (المُدخَل من قِبل الأدمن)
+        if (!string.Equals(citizen.Email, request.Email, StringComparison.OrdinalIgnoreCase))
+            return Result<RegisterResponse>.Failure(
+                "البريد الإلكتروني المدخل لا يطابق البريد المسجَّل في السجلات المدنية. " +
+                "يرجى استخدام البريد المسجَّل لدى الجهات الحكومية، أو التواصل مع الدعم لتحديثه");
+
         // ── 2. Duplicate Check ────────────────────────────────────────
         var alreadyRegistered = await context.Users
             .AnyAsync(u => u.NationalNumber == request.NationalNumber, cancellationToken);
@@ -70,7 +78,6 @@ public sealed class RegisterHandler(
             old.IsUsed = true;
 
         // ── 5. Hash password NOW — before saving ──────────────────────
-        // Raw password is never stored anywhere — only the hash
         var passwordHash = HashPassword(request.Password);
 
         // ── 6. Generate OTP ───────────────────────────────────────────
@@ -78,8 +85,6 @@ public sealed class RegisterHandler(
         var expiresAt = DateTime.UtcNow.AddMinutes(10);
 
         // ── 7. Save OTP + temp registration data in one record ────────
-        // This is the key change: we store phone, email, and password hash here
-        // so VerifyOtp only needs NationalNumber + OtpCode
         var otp = new OtpVerification
         {
             Id = Guid.NewGuid(),
@@ -90,7 +95,6 @@ public sealed class RegisterHandler(
             CreatedAt = DateTime.UtcNow,
             Attempts = 0,
 
-            // Temp data — retrieved in Step 2
             TempPhoneNumber = request.PhoneNumber,
             TempEmail = request.Email,
             TempPasswordHash = passwordHash

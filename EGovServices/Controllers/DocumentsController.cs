@@ -21,7 +21,7 @@ namespace EGovServices.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/documents")]
-[Authorize]
+[Authorize(Roles = "Citizen")]
 public sealed class DocumentsController(IAppDbContext context, IMediator mediator)
     : ControllerBase
 {

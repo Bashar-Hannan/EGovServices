@@ -27,7 +27,7 @@ public sealed class ServicesController(IMediator mediator) : ControllerBase
 
     // POST /api/services/submit
     [HttpPost("submit")]
-    [Authorize]
+    [Authorize(Roles = "Citizen")]
     public async Task<IActionResult> Submit([FromBody] SubmitServiceRequest request)
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

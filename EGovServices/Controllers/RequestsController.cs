@@ -9,7 +9,7 @@ namespace EGovServices.API.Controllers;
 
 [ApiController]
 [Route("api/requests")]
-[Authorize]
+[Authorize(Roles = "Citizen")]
 public class RequestsController : ControllerBase
 {
     private readonly IMediator _mediator;

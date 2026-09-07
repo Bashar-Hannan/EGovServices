@@ -21,7 +21,7 @@ namespace EGovServices.API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/payments")]
-[Authorize]
+[Authorize(Roles = "Citizen")]
 public sealed class PaymentsController(IMediator mediator) : ControllerBase
 {
     /// <summary>

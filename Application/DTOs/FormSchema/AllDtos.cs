@@ -14,6 +14,8 @@ public sealed record FormSchemaResponse
     public required decimal ServiceFee { get; init; }
     public required ServiceType ServiceType { get; init; }
     public string ServiceTypeLabel {  get; init; }
+    public string PaymentType { get; set; }
+    public string PaymentTypeLabel { get; set; }
     public List<BranchOptionDto>? Branches { get; init; }      // ? √÷› Â–«
     public required List<FormFieldDto> Fields { get; init; } = [];
 }

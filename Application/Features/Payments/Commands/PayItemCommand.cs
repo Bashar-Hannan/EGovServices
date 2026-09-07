@@ -94,7 +94,7 @@ public sealed class PayItemHandler(
             Id = Guid.NewGuid(),
             UserId = userId,
             Title = "تمت تسوية مخالفة مرورية",
-            Message = $"تم خصم {violation.Amount:F2} ريال لقاء تسوية المخالفة رقم {violation.ViolationNumber}. الرصيد المتبقي: {wallet.Balance:F2} ريال.",
+            Message = $"تم خصم {violation.Amount:F2} ليرة سورية لقاء تسوية المخالفة رقم {violation.ViolationNumber}. الرصيد المتبقي: {wallet.Balance:F2} ليرة سورية.",
             NotificationType = "Success",
             IsRead = false,
             CreatedAt = now
@@ -107,7 +107,7 @@ public sealed class PayItemHandler(
             ReferenceNumber: violation.ViolationNumber,
             AmountPaid: violation.Amount,
             WalletBalanceAfter: wallet.Balance,
-            Message: $"تمت تسوية المخالفة بنجاح. تم خصم {violation.Amount:F2} ريال."
+            Message: $"تمت تسوية المخالفة بنجاح. تم خصم {violation.Amount:F2} ليرة سورية."
         ));
     }
 
@@ -131,7 +131,7 @@ public sealed class PayItemHandler(
         var wallet = await GetAndValidateWallet(userId, bill.Amount, ct);
         if (wallet is null)
             return Result<PayItemResponse>.Failure(
-                $"رصيد المحفظة غير كافٍ. المبلغ المطلوب: {bill.Amount:F2} ريال");
+                $"رصيد المحفظة غير كافٍ. المبلغ المطلوب: {bill.Amount:F2} ليرة سورية");
 
         var now = DateTime.UtcNow;
         wallet.Balance -= bill.Amount;
@@ -159,7 +159,7 @@ public sealed class PayItemHandler(
             Id = Guid.NewGuid(),
             UserId = userId,
             Title = "تم دفع فاتورة الكهرباء",
-            Message = $"تم خصم {bill.Amount:F2} ريال لقاء فاتورة كهرباء {bill.Month}. الرصيد المتبقي: {wallet.Balance:F2} ريال.",
+            Message = $"تم خصم {bill.Amount:F2} ليرة سورية لقاء فاتورة كهرباء {bill.Month}. الرصيد المتبقي: {wallet.Balance:F2} ليرة سورية.",
             NotificationType = "Success",
             IsRead = false,
             CreatedAt = now
@@ -172,7 +172,7 @@ public sealed class PayItemHandler(
             ReferenceNumber: bill.BillNumber,
             AmountPaid: bill.Amount,
             WalletBalanceAfter: wallet.Balance,
-            Message: $"تم دفع فاتورة الكهرباء بنجاح. تم خصم {bill.Amount:F2} ريال."
+            Message: $"تم دفع فاتورة الكهرباء بنجاح. تم خصم {bill.Amount:F2} ليرة سورية."
         ));
     }
 

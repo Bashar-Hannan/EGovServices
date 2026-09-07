@@ -8,58 +8,29 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EGovServices.API.Controllers;
 
-/// <summary>
-/// تدفق الشاشة الرئيسية:
-///
-///   GET /api/ministries                    ← الشاشة الرئيسية (كروت الوزارات)
-///       ↓ يختار وزارة
-///   GET /api/ministries/{id}               ← تفاصيل الوزارة
-///   GET /api/ministries/{id}/services      ← قائمة خدمات الوزارة
-///       ↓ يختار خدمة
-///   GET /api/services/{serviceId}/form-schema  ← النموذج (موجود مسبقاً)
-///       ↓ يملأ النموذج ويرسل
-///   POST /api/services/{serviceId}/submit      ← التقديم (موجود مسبقاً)
-/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class MinistriesController(IMediator mediator) : ControllerBase
 {
-    /// <summary>
-    /// الشاشة الرئيسية — قائمة كل الوزارات النشطة مع عدد خدمات كل منها.
-    ///
-    /// GET /api/ministries
-    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var result = await mediator.Send(new GetMinistriesQuery());
-
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => BadRequest(new { success = false, message = error }));
     }
 
-    /// <summary>
-    /// تفاصيل وزارة واحدة (الاسم، الوصف، عدد الخدمات، عدد الفروع).
-    ///
-    /// GET /api/ministries/{id}
-    /// </summary>
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await mediator.Send(new GetMinistryByIdQuery(id));
-
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => NotFound(new { success = false, message = error }));
     }
 
-    /// <summary>
-    /// خدمات وزارة معينة — تُعرض بعد اختيار الوزارة.
-    ///
-    /// GET /api/ministries/{id}/services
-    /// </summary>
     [HttpGet("{id:guid}/services")]
     public async Task<IActionResult> GetServices(Guid id)
     {
@@ -67,24 +38,30 @@ public sealed class MinistriesController(IMediator mediator) : ControllerBase
         {
             MinistryId = id
         });
-
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => NotFound(new { success = false, message = error }));
     }
 
     /// <summary>
-    /// فروع وزارة معينة مع الموقع الجغرافي.
+    /// فروع الوزارة — يدعم الآن فلترة اختيارية بالمحافظة.
     ///
-    /// GET /api/ministries/{id}/branches
+    /// GET /api/ministries/{id}/branches                    ← كل الفروع
+    /// GET /api/ministries/{id}/branches?governorate=حلب     ← فروع حلب فقط
+    ///
+    /// تستخدمها خدمة "عرض المستشفيات الحكومية" تحت وزارة الصحة —
+    /// كل مستشفى مُخزَّن كـ Branch، وعمود City يمثّل المحافظة.
     /// </summary>
     [HttpGet("{id:guid}/branches")]
-    public async Task<IActionResult> GetBranches(Guid id)
+    public async Task<IActionResult> GetBranches(Guid id, [FromQuery] string? governorate)
     {
-        var result = await mediator.Send(new GetMinistryBranchesQuery(id));
-
+        var result = await mediator.Send(new GetMinistryBranchesQuery
+        {
+            MinistryId = id,
+            Governorate = governorate
+        });
         return result.Match(
-            onSuccess: data  => (IActionResult)Ok(new { success = true, data }),
+            onSuccess: data => (IActionResult)Ok(new { success = true, data }),
             onFailure: error => NotFound(new { success = false, message = error }));
     }
 }

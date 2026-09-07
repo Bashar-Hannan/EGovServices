@@ -6,8 +6,17 @@ using Microsoft.EntityFrameworkCore;
 namespace EGovServices.Application.Features.Ministries.Queries.GetMinistryBranches;
 
 // ─── Query ────────────────────────────────────────────────────────────────────
-public sealed record GetMinistryBranchesQuery(Guid MinistryId)
-    : IRequest<Result<List<MinistryBranchDto>>>;
+public sealed record GetMinistryBranchesQuery : IRequest<Result<List<MinistryBranchDto>>>
+{
+    public required Guid MinistryId { get; init; }
+
+    /// <summary>
+    /// ✅ جديد — فلترة اختيارية بالمحافظة (عمود City في Branch).
+    /// null يعني إرجاع كل الفروع بدون فلترة (السلوك القديم كما هو).
+    /// تُستخدم بواسطة خدمة "عرض المستشفيات الحكومية" تحت وزارة الصحة.
+    /// </summary>
+    public string? Governorate { get; init; }
+}
 
 // ─── DTO ──────────────────────────────────────────────────────────────────────
 public sealed record MinistryBranchDto
@@ -16,9 +25,7 @@ public sealed record MinistryBranchDto
     public required string Name { get; init; }
     public required string Address { get; init; }
     public required string City { get; init; }
-    public string? PhoneNumber { get; init; } // تم تغييره لـ string? لأنه في Branch.cs قد يكون null
-
-    // للخريطة في الواجهة الأمامية
+    public string? PhoneNumber { get; init; }
     public decimal? Latitude { get; init; }
     public decimal? Longitude { get; init; }
 }
@@ -30,10 +37,15 @@ public sealed class GetMinistryBranchesHandler(IAppDbContext context)
     public async Task<Result<List<MinistryBranchDto>>> Handle(
         GetMinistryBranchesQuery request, CancellationToken cancellationToken)
     {
-        // جلب الفروع النشطة للجهة الحكومية المحددة مع ترتيبها
-        var branches = await context.Branches
+        var query = context.Branches
             .AsNoTracking()
-            .Where(b => b.GovernmentEntityId == request.MinistryId && b.IsActive)
+            .Where(b => b.GovernmentEntityId == request.MinistryId && b.IsActive);
+
+        // ✅ فلترة بالمحافظة إذا طُلبت
+        if (!string.IsNullOrWhiteSpace(request.Governorate))
+            query = query.Where(b => b.City == request.Governorate);
+
+        var branches = await query
             .OrderBy(b => b.City)
             .ThenBy(b => b.Name)
             .Select(b => new MinistryBranchDto
@@ -48,8 +60,6 @@ public sealed class GetMinistryBranchesHandler(IAppDbContext context)
             })
             .ToListAsync(cancellationToken);
 
-        // إرجاع القائمة حتى لو كانت فارغة (Success)
-        // إذا كان منطق العمل يتطلب فشل الطلب عند عدم وجود فروع، يمكن إضافة تحقق هنا.
         return Result<List<MinistryBranchDto>>.Success(branches);
     }
 }

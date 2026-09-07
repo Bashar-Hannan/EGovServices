@@ -8,7 +8,7 @@ namespace EGovServices.API.Controllers;
 
 [ApiController]
 [Route("api/wallet")]
-[Authorize]
+[Authorize(Roles = "Citizen")]
 public sealed class WalletController(IMediator mediator) : ControllerBase
 {
     /// <summary>

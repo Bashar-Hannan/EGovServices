@@ -22,12 +22,12 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
             .FirstOrDefaultAsync(x => x.Id == request.ServiceId, cancellationToken);
 
         if (service is null)
-            return Result<FormSchemaResponse>.Failure("الخدمة المطلوبة غير موجودة");
+            return Result<FormSchemaResponse>.Failure("الخدمة غير موجودة");
 
         if (!service.IsActive)
-            return Result<FormSchemaResponse>.Failure("هذه الخدمة غير متاحة حالياً");
+            return Result<FormSchemaResponse>.Failure("الخدمة غير متاحة حالياً");
 
-        // ← أضف هذا الكود هنا
+        // فروع الوزارة — فقط لخدمات الموعد
         List<BranchOptionDto>? branches = null;
         if (service.ServiceType == ServiceType.Appointment)
         {
@@ -42,6 +42,7 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
                 })
                 .ToListAsync(cancellationToken);
         }
+
         var fields = await context.ServiceFormFields
             .AsNoTracking()
             .Include(f => f.Options.Where(o => o.IsActive))
@@ -51,9 +52,14 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
 
         var fieldDtos = fields.Select(f => new FormFieldDto
         {
-            Name = f.FieldName, Label = f.Label, Type = f.FieldType,
-            Required = f.IsRequired, Order = f.DisplayOrder,
-            Placeholder = f.Placeholder, DefaultValue = f.DefaultValue, HelpText = f.HelpText,
+            Name = f.FieldName,
+            Label = f.Label,
+            Type = f.FieldType,
+            Required = f.IsRequired,
+            Order = f.DisplayOrder,
+            Placeholder = f.Placeholder,
+            DefaultValue = f.DefaultValue,
+            HelpText = f.HelpText,
             Validation = Deserialize<ValidationRulesDto>(f.ValidationRules),
             Metadata = Deserialize<Dictionary<string, object>>(f.Metadata),
             Options = f.Options.Count != 0
@@ -63,6 +69,9 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
                 : null
         }).ToList();
 
+        // تحديد نوع الدفع من اسم الخدمة (نفس منطق GetMinistryServicesQuery)
+        var (paymentType, paymentTypeLabel) = DeterminePaymentType(service.Name);
+
         return Result<FormSchemaResponse>.Success(new FormSchemaResponse
         {
             ServiceId = service.Id,
@@ -71,16 +80,48 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
             Requirements = service.Requirements,
             ServiceFee = service.ServiceFee,
             ServiceType = service.ServiceType,
-            ServiceTypeLabel = (service.ServiceType == ServiceType.Digital)? "إلكتروني بالكامل": "يتطلب حضوراً",
+            ServiceTypeLabel = BuildServiceTypeLabel(service.ServiceType, paymentType),
+            PaymentType = paymentType,
+            PaymentTypeLabel = paymentTypeLabel,
             Fields = fieldDtos,
             Branches = branches
         });
     }
 
+    /// <summary>نفس المنطق في GetMinistryServicesQuery و SearchServicesQuery — حافظ على تطابق الثلاثة</summary>
+    private static (string? type, string? label) DeterminePaymentType(string serviceName)
+    {
+        if (serviceName.Contains("مخالف"))
+            return ("violation", "المخالفات المرورية");
+
+        if (serviceName.Contains("كهرباء"))
+            return ("electricity", "فواتير الكهرباء");
+
+        return (null, null);
+    }
+
+    /// <summary>نفس المنطق في GetMinistryServicesQuery و SearchServicesQuery — حافظ على تطابق الثلاثة</summary>
+    private static string BuildServiceTypeLabel(ServiceType serviceType, string? paymentType)
+    {
+        if (paymentType is not null)
+            return "خدمة دفع إلكتروني";
+
+        return serviceType == ServiceType.Digital
+            ? "إلكتروني بالكامل"
+            : "يتطلب حضوراً";
+    }
+
     private static T? Deserialize<T>(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return default;
-        try { return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
-        catch { return default; }
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch
+        {
+            return default;
+        }
     }
 }
