@@ -56,6 +56,19 @@ public sealed class CreateAppointmentSlotHandler(IAppDbContext context)
     public async Task<Result<CreateAppointmentSlotResponse>> Handle(
         CreateAppointmentSlotCommand request, CancellationToken cancellationToken)
     {
+        // ── تحقق مخصص لهذا الـ Handler فقط (بدون تفعيل Pipeline عام) ──
+        if (request.SlotDate <= DateOnly.FromDateTime(DateTime.UtcNow))
+            return Result<CreateAppointmentSlotResponse>.Failure(
+                "تاريخ الموعد يجب أن يكون في المستقبل");
+
+        if (request.EndTime <= request.StartTime)
+            return Result<CreateAppointmentSlotResponse>.Failure(
+                "وقت الانتهاء يجب أن يكون بعد وقت البداية");
+
+        if (request.TotalSeats <= 0)
+            return Result<CreateAppointmentSlotResponse>.Failure(
+                "عدد المقاعد يجب أن يكون أكبر من صفر");
+
         // التحقق أن الخدمة موجودة وهي خدمة موعد
         var service = await context.GovernmentServices
             .FirstOrDefaultAsync(s => s.Id == request.GovernmentServiceId, cancellationToken);
@@ -83,16 +96,16 @@ public sealed class CreateAppointmentSlotHandler(IAppDbContext context)
 
         var slot = new AppointmentSlot
         {
-            Id                  = Guid.NewGuid(),
+            Id = Guid.NewGuid(),
             GovernmentServiceId = request.GovernmentServiceId,
-            CreatedByAdminId    = request.CreatedByAdminId,
-            SlotDate            = request.SlotDate,
-            StartTime           = request.StartTime,
-            EndTime             = request.EndTime,
-            TotalSeats          = request.TotalSeats,
-            BookedSeats         = 0,
-            IsActive            = true,
-            CreatedAt           = DateTime.UtcNow
+            CreatedByAdminId = request.CreatedByAdminId,
+            SlotDate = request.SlotDate,
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
+            TotalSeats = request.TotalSeats,
+            BookedSeats = 0,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
         };
 
         await context.AppointmentSlots.AddAsync(slot, cancellationToken);
@@ -100,10 +113,10 @@ public sealed class CreateAppointmentSlotHandler(IAppDbContext context)
 
         return Result<CreateAppointmentSlotResponse>.Success(new CreateAppointmentSlotResponse
         {
-            SlotId     = slot.Id,
-            SlotDate   = slot.SlotDate,
-            StartTime  = slot.StartTime,
-            EndTime    = slot.EndTime,
+            SlotId = slot.Id,
+            SlotDate = slot.SlotDate,
+            StartTime = slot.StartTime,
+            EndTime = slot.EndTime,
             TotalSeats = slot.TotalSeats
         });
     }
