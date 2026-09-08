@@ -12,5 +12,7 @@ public enum ServiceType
     /// خدمة تحتاج حضوراً مادياً — يُرفع الملف ويُحجز موعد
     /// مثال: تجديد جواز السفر
     /// </summary>
-    Appointment = 1
+    Appointment = 1,
+
+    Directory = 4
 }

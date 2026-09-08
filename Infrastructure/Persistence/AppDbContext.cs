@@ -40,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<UploadedFile> UploadedFiles => Set<UploadedFile>();
     public DbSet<TrafficViolation> TrafficViolations => Set<TrafficViolation>();
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
+    public DbSet<Hospital> Hospitals => Set<Hospital>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

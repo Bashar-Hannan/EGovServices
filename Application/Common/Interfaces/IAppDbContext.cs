@@ -30,5 +30,8 @@ public interface IAppDbContext
     DbSet<ElectricityBill> ElectricityBills { get; }
     DbSet<MedicalRecord> MedicalRecords { get; }
 
+    // ✅ جديد — جدول المستشفيات الحكومية المستقل
+    DbSet<Hospital> Hospitals { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

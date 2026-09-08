@@ -110,6 +110,9 @@ public sealed class SearchServicesHandler(IAppDbContext context)
         if (paymentType is not null)
             return "خدمة دفع إلكتروني";
 
+        if (serviceType == ServiceType.Directory)
+            return "دليل على الخريطة";
+
         return serviceType == ServiceType.Digital
             ? "إلكتروني بالكامل"
             : "يتطلب حضوراً";

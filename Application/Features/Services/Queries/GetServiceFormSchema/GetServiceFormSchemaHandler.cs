@@ -75,6 +75,7 @@ public sealed class GetServiceFormSchemaHandler(IAppDbContext context)
         return Result<FormSchemaResponse>.Success(new FormSchemaResponse
         {
             ServiceId = service.Id,
+            GovernmentEntityId = service.GovernmentEntityId,
             ServiceName = service.Name,
             Description = service.Description,
             Requirements = service.Requirements,

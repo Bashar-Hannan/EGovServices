@@ -13,4 +13,5 @@ public class GovernmentEntity
     // Navigation
     public ICollection<GovernmentService> GovernmentServices { get; set; } = [];
     public ICollection<Branch> Branches { get; set; } = [];
+    public ICollection<Hospital> Hospitals { get; set; } = [];
 }

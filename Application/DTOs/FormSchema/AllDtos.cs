@@ -8,12 +8,13 @@ namespace EGovServices.Application.DTOs.FormSchema;
 public sealed record FormSchemaResponse
 {
     public required Guid ServiceId { get; init; }
+    public required Guid GovernmentEntityId { get; init; }
     public required string ServiceName { get; init; }
     public required string Description { get; init; }
     public string? Requirements { get; init; }
     public required decimal ServiceFee { get; init; }
     public required ServiceType ServiceType { get; init; }
-    public string ServiceTypeLabel {  get; init; }
+    public string ServiceTypeLabel { get; init; }
     public string PaymentType { get; set; }
     public string PaymentTypeLabel { get; set; }
     public List<BranchOptionDto>? Branches { get; init; }      // ? √÷› Â–«
@@ -58,8 +59,8 @@ public sealed record FieldOptionDto
 
 public sealed record BranchOptionDto
 {
-    public required Guid   Id      { get; init; }
-    public required string Name    { get; init; }
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
     public required string Address { get; init; }
 }
 
